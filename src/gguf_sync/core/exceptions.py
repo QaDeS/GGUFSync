@@ -1,10 +1,10 @@
-"""Custom exceptions for link_models."""
+"""Custom exceptions for gguf_sync."""
 
 from __future__ import annotations
 
 
-class LinkModelsError(Exception):
-    """Base exception for all link_models errors."""
+class GGUFSyncError(Exception):
+    """Base exception for all gguf_sync errors."""
 
     def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
         super().__init__(message)
@@ -12,25 +12,25 @@ class LinkModelsError(Exception):
         self.details = details or {}
 
 
-class ConfigError(LinkModelsError):
+class ConfigError(GGUFSyncError):
     """Configuration-related errors."""
 
     pass
 
 
-class GGUFError(LinkModelsError):
+class GGUFError(GGUFSyncError):
     """GGUF parsing errors."""
 
     pass
 
 
-class SyncError(LinkModelsError):
+class SyncError(GGUFSyncError):
     """File synchronization errors."""
 
     pass
 
 
-class BackendError(LinkModelsError):
+class BackendError(GGUFSyncError):
     """Backend-specific errors."""
 
     def __init__(
@@ -44,13 +44,13 @@ class BackendError(LinkModelsError):
         self.backend_name = backend_name
 
 
-class WatchError(LinkModelsError):
+class WatchError(GGUFSyncError):
     """Filesystem watching errors."""
 
     pass
 
 
-class ServiceError(LinkModelsError):
+class ServiceError(GGUFSyncError):
     """Service installation/management errors."""
 
     pass

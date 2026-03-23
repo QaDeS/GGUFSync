@@ -53,7 +53,7 @@ uv-sync: ## Sync uv environment with locked dependencies
 	uv sync
 
 uv-run: ## Run the application using uv
-	uv run link-models
+	uv run gguf-sync
 
 test: ## Run all tests
 	$(PYTEST) -v
@@ -65,7 +65,7 @@ test-integration: ## Run integration tests only
 	$(PYTEST) -v -m integration
 
 test-cov: ## Run tests with coverage
-	$(PYTEST) -v --cov=link_models --cov-report=html --cov-report=term
+	$(PYTEST) -v --cov=gguf_sync --cov-report=html --cov-report=term
 
 lint: ## Run linter (ruff)
 	$(RUFF) check src tests
@@ -100,13 +100,13 @@ build-installer: clean ## Build executable with installer
 	$(PYTHON) scripts/build.py --backend pyinstaller --installer --clean
 
 run: ## Run the application (e.g., make run ARGS="--help")
-	$(PYTHON) -m link_models --verbose $(ARGS)
+	$(PYTHON) -m gguf_sync --verbose $(ARGS)
 
 sync: ## Run one-time sync (for development)
-	$(PYTHON) -m link_models --verbose sync
+	$(PYTHON) -m gguf_sync --verbose sync
 
 generate-config: ## Generate default configuration file
-	$(PYTHON) -m link_models config --generate
+	$(PYTHON) -m gguf_sync config --generate
 
 docs: ## Generate documentation (placeholder)
 	@echo "Documentation generation not yet implemented"

@@ -1,4 +1,4 @@
-# link-models
+# GGUFSync
 
 A cross-platform model linker for LLM inference engines that synchronizes GGUF model files across multiple backends using hardlinks or symlinks (no file copying).
 
@@ -16,14 +16,14 @@ A cross-platform model linker for LLM inference engines that synchronizes GGUF m
 ## Installation
 
 ```bash
-pip install link-models
+pip install gguf-sync
 ```
 
 Or install from source:
 
 ```bash
-git clone https://github.com/yourrepo/link-models.git
-cd link-models
+git clone https://github.com/yourrepo/gguf-sync.git
+cd gguf-sync
 pip install -e .
 ```
 
@@ -31,10 +31,10 @@ pip install -e .
 
 ### Auto-Discovery (Recommended)
 
-The easiest way to get started is to let link-models discover your installed backends:
+The easiest way to get started is to let gguf-sync discover your installed backends:
 
 ```bash
-link-models discover
+gguf-sync discover
 ```
 
 This scans your system for:
@@ -46,7 +46,7 @@ This scans your system for:
 Generate a config file from discovered backends:
 
 ```bash
-link-models discover --generate-config --output link_models.yaml
+gguf-sync discover --generate-config --output gguf_sync.yaml
 ```
 
 The generated config will include:
@@ -59,10 +59,10 @@ The generated config will include:
 If you prefer manual configuration:
 
 ```bash
-link-models config --generate
+gguf-sync config --generate
 ```
 
-Edit `link_models.yaml` to enable your backends:
+Edit `gguf_sync.yaml` to enable your backends:
 
 ```yaml
 source_dir: /path/to/models
@@ -87,13 +87,13 @@ backends:
 ### Run Synchronization
 
 ```bash
-link-models sync
+gguf-sync sync
 ```
 
 Or watch for changes:
 
 ```bash
-link-models watch
+gguf-sync watch
 ```
 
 ### Run as a Service
@@ -101,8 +101,8 @@ link-models watch
 Install as a systemd service for automatic background sync:
 
 ```bash
-link-models service install
-link-models service start
+gguf-sync service install
+gguf-sync service start
 ```
 
 ## Auto-Discovery Details
@@ -133,18 +133,18 @@ Discovery tries common ports for each backend type:
 Install as a systemd service for automatic background sync:
 
 ```bash
-link-models service install
-link-models service start
+gguf-sync service install
+gguf-sync service start
 ```
 
 Check status:
 ```bash
-link-models service status
+gguf-sync service status
 ```
 
 View logs:
 ```bash
-journalctl -u link-models -f
+journalctl -u gguf-sync -f
 ```
 
 ## Configuration Reference
@@ -247,10 +247,10 @@ The context size is resolved in this priority order:
 ## Configuration File Locations
 
 Configuration is searched for in order:
-1. `./link_models.yaml` (current directory)
+1. `./gguf_sync.yaml` (current directory)
 2. `./link_models.yml`
 3. `~/.config/link_models/config.yaml`
-4. `~/.link_models.yaml`
+4. `~/.gguf_sync.yaml`
 5. `/etc/link_models/config.yaml`
 
 ## Environment Variables

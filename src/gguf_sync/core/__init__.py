@@ -1,4 +1,4 @@
-"""Core modules for link_models."""
+"""Core modules for gguf_sync."""
 
 from .config import Config, ConfigLoader
 from .constants import (
@@ -13,7 +13,7 @@ from .exceptions import (
     BackendError,
     ConfigError,
     GGUFError,
-    LinkModelsError,
+    GGUFSyncError,
     SyncError,
 )
 from .logging import get_logger, setup_logging
@@ -34,7 +34,7 @@ __all__ = [
     "ConfigLoader",
     "GGUFError",
     # Exceptions
-    "LinkModelsError",
+    "GGUFSyncError",
     "ModelGroup",
     # Models
     "ModelInfo",

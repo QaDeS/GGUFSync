@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from link_models.core.watcher import DownloadDetector
+from gguf_sync.core.watcher import DownloadDetector
 
 
 class TestDownloadDetector:

@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from link_models.backends import LlamaCppBackend, LocalAIBackend
-from link_models.core.models import (
+from gguf_sync.backends import LlamaCppBackend, LocalAIBackend
+from gguf_sync.core.models import (
     AppConfig,
     LlamaCppConfig,
     LocalAIConfig,
     SyncEvent,
     SyncEventType,
 )
-from link_models.core.sync import SyncEngine
+from gguf_sync.core.sync import SyncEngine
 
 if TYPE_CHECKING:
     from pathlib import Path

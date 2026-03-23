@@ -6,15 +6,15 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from link_models.backends.base import Backend, BackendResult
-from link_models.core.models import (
+from gguf_sync.backends.base import Backend, BackendResult
+from gguf_sync.core.models import (
     AppConfig,
     BackendConfig,
     LoggingConfig,
     SyncConfig,
     WatchConfig,
 )
-from link_models.core.sync import ModelFilter, SyncEngine
+from gguf_sync.core.sync import ModelFilter, SyncEngine
 
 if TYPE_CHECKING:
     from pathlib import Path

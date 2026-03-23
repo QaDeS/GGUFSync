@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from link_models.core.models import (
+from gguf_sync.core.models import (
     AppConfig,
     BackendConfig,
     GPT4AllConfig,

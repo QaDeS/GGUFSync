@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 # UV-specific configuration
 [tool.uv]
-# Allow installation via `uvx link-models`
+# Allow installation via `uvx gguf-sync`
 # This ensures the package is compatible with uv's tool ecosystem
 
 [project]
-name = "link-models"
-# UV-specific: Enable tool installation via `uvx link-models`
-# Usage: uvx link-models [command]
-# Or: uv tool install link-models
+name = "gguf-sync"
+# UV-specific: Enable tool installation via `uvx gguf-sync`
+# Usage: uvx gguf-sync [command]
+# Or: uv tool install gguf-sync
 version = "2.0.0"
 description = "Cross-platform model linker for LLM inference engines"
 readme = "README.md"
@@ -68,7 +68,7 @@ build = [
 ]
 
 [project.scripts]
-link-models = "link_models.main:app"
+gguf-sync = "gguf_sync.main:app"
 
 [project.urls]
 Homepage = "https://github.com/mudler/LocalAI"
@@ -76,7 +76,7 @@ Documentation = "https://localai.io"
 Repository = "https://github.com/mudler/LocalAI"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/link_models"]
+packages = ["src/gguf_sync"]
 
 # Ruff configuration
 [tool.ruff]
@@ -147,7 +147,7 @@ asyncio_default_fixture_loop_scope = "function"
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["src/link_models"]
+source = ["src/gguf_sync"]
 branch = true
 
 [tool.coverage.report]

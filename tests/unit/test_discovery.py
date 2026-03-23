@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from link_models.core.discovery import (
+from gguf_sync.core.discovery import (
     BackendDiscovery,
     DiscoveredBackend,
     create_config_from_discovered,

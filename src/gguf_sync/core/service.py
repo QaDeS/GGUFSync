@@ -231,7 +231,7 @@ class ServiceInstaller:
         else:
             # Running as Python script
             exec_path = self.executable_path
-            args = ["-m", "link_models", "watch"] + (args or [])
+            args = ["-m", "gguf_sync", "watch"] + (args or [])
 
         # Create systemd service file
         service_content = f"""[Unit]
@@ -310,7 +310,7 @@ WantedBy=multi-user.target
             exec_path = self.executable_path
         else:
             exec_path = self.executable_path
-            args = ["-m", "link_models", "watch"] + (args or [])
+            args = ["-m", "gguf_sync", "watch"] + (args or [])
 
         plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -380,7 +380,7 @@ WantedBy=multi-user.target
         raise ServiceError(
             "Windows service installation requires manual setup. "
             "Consider using NSSM (Non-Sucking Service Manager) or pywin32. "
-            "Example with NSSM: nssm install link-models <path_to_executable>"
+            "Example with NSSM: nssm install gguf-sync <path_to_executable>"
         )
 
     def _uninstall_windows_service(self) -> None:
@@ -389,5 +389,5 @@ WantedBy=multi-user.target
         raise ServiceError(
             "Windows service uninstallation requires manual setup. "
             "Consider using NSSM or manual removal. "
-            "Example: nssm remove link-models confirm"
+            "Example: nssm remove gguf-sync confirm"
         )

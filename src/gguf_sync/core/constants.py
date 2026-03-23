@@ -1,4 +1,4 @@
-"""Constants for link_models."""
+"""Constants for gguf_sync."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ DEFAULT_JAN_DIR = "/jan_models"
 DEFAULT_LLAMA_CPP_PYTHON_DIR = "/llama-cpp-python_models"
 
 # Service configuration
-DEFAULT_SERVICE_NAME = "link-models"
-DEFAULT_VENV_DIR = "/opt/link-models/venv"
+DEFAULT_SERVICE_NAME = "gguf-sync"
+DEFAULT_VENV_DIR = "/opt/gguf-sync/venv"
 
 # Download detection
 DOWNLOAD_CHECK_INTERVAL = 2  # Seconds between size checks

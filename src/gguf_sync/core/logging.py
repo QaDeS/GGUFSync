@@ -1,4 +1,4 @@
-"""Structured logging configuration for link_models."""
+"""Structured logging configuration for gguf_sync."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
             if module:
                 name = module.__name__
         if name is None:
-            name = "link_models"
+            name = "gguf_sync"
 
     return structlog.get_logger(name)
 

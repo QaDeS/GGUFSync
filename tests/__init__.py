@@ -1,1 +1,1 @@
-"""Tests for link_models."""
+"""Tests for gguf_sync."""

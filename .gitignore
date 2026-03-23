@@ -132,6 +132,8 @@ Thumbs.db
 # Project specific
 link_models.yaml
 link_models.yml
+gguf_sync.yaml
+gguf_sync.yml
 *.gguf
 *.part
 *.tmp

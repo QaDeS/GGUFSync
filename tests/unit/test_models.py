@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from link_models.core.models import (
+from gguf_sync.core.models import (
     GGUFMetadata,
     ModelGroup,
     ModelInfo,

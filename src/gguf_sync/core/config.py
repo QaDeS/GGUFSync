@@ -48,16 +48,16 @@ logger = get_logger(__name__)
 
 # Default config file locations (in order of preference)
 CONFIG_LOCATIONS = [
-    Path.cwd() / "link_models.yaml",
-    Path.cwd() / "link_models.yml",
-    Path.home() / ".config" / "link_models" / "config.yaml",
-    Path.home() / ".link_models.yaml",
-    Path("/etc") / "link_models" / "config.yaml",
-    Path("/etc") / "default" / "link_models",
+    Path.cwd() / "gguf_sync.yaml",
+    Path.cwd() / "gguf_sync.yml",
+    Path.home() / ".config" / "gguf_sync" / "config.yaml",
+    Path.home() / ".gguf_sync.yaml",
+    Path("/etc") / "gguf_sync" / "config.yaml",
+    Path("/etc") / "default" / "gguf_sync",
 ]
 
 # Environment variable prefix
-ENV_PREFIX = "LINK_MODELS_"
+ENV_PREFIX = "GGUF_SYNC_"
 
 
 def load_yaml_config(path: Path) -> dict[str, Any]:

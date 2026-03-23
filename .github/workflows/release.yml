@@ -31,7 +31,7 @@ jobs:
       - name: Create tarball
         run: |
           cd dist
-          tar czf link-models-${{ github.ref_name }}-linux-x86_64.tar.gz link-models-*
+          tar czf gguf-sync-${{ github.ref_name }}-linux-x86_64.tar.gz gguf-sync-*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -61,7 +61,7 @@ jobs:
       - name: Create tarball
         run: |
           cd dist
-          tar czf link-models-${{ github.ref_name }}-macos-universal.tar.gz link-models-*
+          tar czf gguf-sync-${{ github.ref_name }}-macos-universal.tar.gz gguf-sync-*
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -91,7 +91,7 @@ jobs:
       - name: Create zip
         run: |
           cd dist
-          Compress-Archive -Path link-models-*.exe -DestinationPath link-models-${{ github.ref_name }}-windows-x86_64.zip
+          Compress-Archive -Path gguf-sync-*.exe -DestinationPath gguf-sync-${{ github.ref_name }}-windows-x86_64.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

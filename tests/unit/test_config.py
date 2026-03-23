@@ -8,15 +8,15 @@ from typing import TYPE_CHECKING
 import pytest
 import yaml
 
-from link_models.core.config import (
+from gguf_sync.core.config import (
     ConfigLoader,
     _parse_env_value,
     get_env_config,
     load_yaml_config,
     merge_configs,
 )
-from link_models.core.exceptions import ConfigError
-from link_models.core.models import AppConfig
+from gguf_sync.core.exceptions import ConfigError
+from gguf_sync.core.models import AppConfig
 
 if TYPE_CHECKING:
     from pathlib import Path

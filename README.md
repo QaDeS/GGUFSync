@@ -1,4 +1,4 @@
-# Link Models
+# GGUFSync
 
 Cross-platform model linker for LLM inference engines. Automatically synchronizes GGUF model files across multiple backends including llama.cpp, LocalAI, LM Studio, Ollama, and more.
 
@@ -19,20 +19,20 @@ Cross-platform model linker for LLM inference engines. Automatically synchronize
 
 ### Using UV (Recommended - Fastest)
 
-With [uv](https://docs.astral.sh/uv/) installed, you can run `link-models` directly without installing:
+With [uv](https://docs.astral.sh/uv/) installed, you can run `gguf-sync` directly without installing:
 
 ```bash
 # Run directly (no installation needed)
-uvx link-models --help
+uvx gguf-sync --help
 
 # Or install as a tool
-uv tool install link-models
+uv tool install gguf-sync
 ```
 
 ### From PyPI (pip)
 
 ```bash
-pip install link-models
+pip install gguf-sync
 ```
 
 ### From Source (with uv)
@@ -60,31 +60,31 @@ Download pre-built binaries from the [releases page](https://github.com/mudler/L
 ### 1. Generate Configuration
 
 ```bash
-link-models config --generate
+gguf-sync config --generate
 ```
 
-This creates a `link_models.yaml` file with default settings.
+This creates a `gguf_sync.yaml` file with default settings.
 
 ### 2. Run One-Time Sync
 
 ```bash
 # With default settings
-link-models sync
+gguf-sync sync
 
 # With custom directories
-link-models sync --source /models --llama-cpp /llama_models --localai /localai_models
+gguf-sync sync --source /models --llama-cpp /llama_models --localai /localai_models
 ```
 
 ### 3. Run Filesystem Watcher
 
 ```bash
-link-models watch
+gguf-sync watch
 ```
 
 ## Configuration
 
 Configuration can be provided via:
-1. Configuration file (`link_models.yaml`)
+1. Configuration file (`gguf_sync.yaml`)
 2. Environment variables
 3. Command-line arguments
 
@@ -181,7 +181,7 @@ sync:
 Or via CLI:
 
 ```bash
-link-models sync --add-only
+gguf-sync sync --add-only
 ```
 
 Or via environment variable:
@@ -423,24 +423,24 @@ test-*
 
 ```bash
 # Install service
-sudo link-models service install
+sudo gguf-sync service install
 
 # Start service
-sudo systemctl start link-models
+sudo systemctl start gguf-sync
 
 # Enable on boot
-sudo systemctl enable link-models
+sudo systemctl enable gguf-sync
 
 # Check status
-link-models service status
+gguf-sync service status
 ```
 
 ### macOS (launchd)
 
 ```bash
 # Install and start service
-link-models service install
-launchctl start link-models
+gguf-sync service install
+launchctl start gguf-sync
 ```
 
 ## Development
@@ -467,7 +467,7 @@ make lint
 make type-check
 
 # Run the application
-uv run link-models --help
+uv run gguf-sync --help
 ```
 
 ### Setup with pip (Legacy)

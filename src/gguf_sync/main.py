@@ -1,4 +1,4 @@
-"""Main entry point for link_models."""
+"""Main entry point for gguf_sync."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from .core.constants import (
     DEFAULT_SERVICE_NAME,
 )
 from .core.discovery import BackendDiscovery, create_config_from_discovered
-from .core.exceptions import LinkModelsError
+from .core.exceptions import GGUFSyncError
 from .core.logging import get_logger, setup_logging
 from .core.models import (
     AppConfig,
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 # Rich console for pretty output
 console = Console()
 app = typer.Typer(
-    name="link-models",
+    name="gguf-sync",
     help="Cross-platform model linker for LLM inference engines",
     rich_markup_mode="rich",
 )
@@ -71,7 +71,7 @@ def version_callback(value: bool) -> None:
     if value:
         from . import __version__
 
-        console.print(f"link-models version {__version__}")
+        console.print(f"gguf-sync version {__version__}")
         raise typer.Exit()
 
 
@@ -329,7 +329,7 @@ def sync(
 
         console.print("[bold green]Synchronization complete![/bold green]")
 
-    except LinkModelsError as e:
+    except GGUFSyncError as e:
         console.print(f"[red]Error: {e.message}[/red]")
         if e.details:
             console.print(f"[dim]{e.details}[/dim]")
@@ -444,7 +444,7 @@ def watch(
 
         except asyncio.CancelledError:
             console.print("\n[yellow]Watcher stopped[/yellow]")
-        except LinkModelsError as e:
+        except GGUFSyncError as e:
             console.print(f"[red]Error: {e.message}[/red]")
             raise typer.Exit(1)
         except Exception as e:
@@ -471,15 +471,15 @@ def service(
         help="Service name",
     ),
 ) -> None:
-    """Manage the link-models service."""
+    """Manage the gguf-sync service."""
     installer = ServiceInstaller(service_name=name)
 
     if action == "install":
         try:
             installer.install()
             console.print(f"[green]Service '{name}' installed successfully[/green]")
-            console.print("[dim]Start with: [bold]link-models service start[/bold][/dim]")
-        except LinkModelsError as e:
+            console.print("[dim]Start with: [bold]gguf-sync service start[/bold][/dim]")
+        except GGUFSyncError as e:
             console.print(f"[red]Failed to install service: {e.message}[/red]")
             raise typer.Exit(1)
 
@@ -487,7 +487,7 @@ def service(
         try:
             installer.uninstall()
             console.print(f"[green]Service '{name}' uninstalled successfully[/green]")
-        except LinkModelsError as e:
+        except GGUFSyncError as e:
             console.print(f"[red]Failed to uninstall service: {e.message}[/red]")
             raise typer.Exit(1)
 
@@ -530,7 +530,7 @@ def config(
         help="Generate default configuration file",
     ),
     output: Path = typer.Option(
-        Path("link_models.yaml"),
+        Path("gguf_sync.yaml"),
         "--output",
         "-o",
         help="Output path for generated config",
@@ -545,7 +545,7 @@ def config(
             f.write(default_config)
 
         console.print(f"[green]Default configuration written to: {output}[/green]")
-        console.print("[dim]Edit this file and use with: link-models -c {output} <command>[/dim]")
+        console.print("[dim]Edit this file and use with: gguf-sync -c {output} <command>[/dim]")
     else:
         # Show current effective configuration
         loader = ConfigLoader()
@@ -568,7 +568,7 @@ def discover(
         help="Generate config file with discovered backends",
     ),
     output: Path = typer.Option(
-        Path("link_models.yaml"),
+        Path("gguf_sync.yaml"),
         "--output",
         "-o",
         help="Output path for generated config",
@@ -617,7 +617,7 @@ def discover(
                 f.write(config_yaml)
 
             console.print(f"\n[green]Configuration written to: {output}[/green]")
-            console.print("[dim]Edit this file and use with: link-models -c {output} sync[/dim]")
+            console.print("[dim]Edit this file and use with: gguf-sync -c {output} sync[/dim]")
 
     except Exception as e:
         logger.exception("Discovery failed")

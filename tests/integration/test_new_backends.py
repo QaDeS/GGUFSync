@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 import yaml
 
-from link_models.backends import (
+from gguf_sync.backends import (
     GPT4AllBackend,
     JanBackend,
     KoboldCppBackend,
@@ -17,7 +17,7 @@ from link_models.backends import (
     TextGenBackend,
     vLLMBackend,
 )
-from link_models.core.models import (
+from gguf_sync.core.models import (
     GPT4AllConfig,
     JanConfig,
     KoboldCppConfig,

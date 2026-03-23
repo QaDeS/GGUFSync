@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from link_models.backends import LlamaCppBackend, LMStudioBackend, LocalAIBackend
-from link_models.core.models import (
+from gguf_sync.backends import LlamaCppBackend, LMStudioBackend, LocalAIBackend
+from gguf_sync.core.models import (
     LlamaCppConfig,
     LMStudioConfig,
     LocalAIConfig,

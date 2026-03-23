@@ -1,4 +1,4 @@
-"""Data models for link_models."""
+"""Data models for gguf_sync."""
 
 from __future__ import annotations
 
