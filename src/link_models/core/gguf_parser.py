@@ -11,14 +11,16 @@ from __future__ import annotations
 import concurrent.futures
 import os
 import struct
-from collections.abc import Callable
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .constants import GGUF_KEYS, SPECIAL_EOS_MARKERS
 from .exceptions import GGUFError
 from .logging import get_logger
 from .models import GGUFMetadata
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -98,18 +100,18 @@ def _read_value(f: Any, val_type: int) -> Any:
 
 def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
     """Parse only metadata from a GGUF file using streaming I/O.
-    
+
     This is much more memory-efficient than GGUFReader because it:
     1. Only reads the header and metadata section
     2. Skips tensor info and tensor data entirely
     3. Uses simple file I/O instead of numpy/mmap
-    
+
     Args:
         path: Path to GGUF file
-        
+
     Returns:
         Dictionary of metadata key-value pairs
-        
+
     Raises:
         GGUFError: If parsing fails
     """
@@ -180,10 +182,10 @@ def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
 
 def _extract_stop_tokens_from_metadata(metadata: dict[str, Any]) -> list[str]:
     """Extract stop tokens from metadata dictionary.
-    
+
     Args:
         metadata: Dictionary of GGUF metadata
-        
+
     Returns:
         List of stop token strings
     """
@@ -218,15 +220,15 @@ def _extract_stop_tokens_from_metadata(metadata: dict[str, Any]) -> list[str]:
 
 def parse_gguf_file(path: Path, use_streaming: bool = True) -> GGUFMetadata:
     """Parse metadata from a single GGUF file.
-    
+
     Args:
         path: Path to GGUF file
         use_streaming: Use streaming parser (faster, less memory) instead of
                       numpy-based parser. Defaults to True.
-        
+
     Returns:
         Extracted metadata
-        
+
     Raises:
         GGUFError: If parsing fails
     """
@@ -258,10 +260,7 @@ def parse_gguf_file(path: Path, use_streaming: bool = True) -> GGUFMetadata:
                         break
 
             # Block count / layers
-            if architecture:
-                block_count_key = f"{architecture}.block_count"
-            else:
-                block_count_key = "llama.block_count"
+            block_count_key = f"{architecture}.block_count" if architecture else "llama.block_count"
             num_layers = metadata.get(block_count_key)
 
             # Get file_type (quantization)
@@ -304,7 +303,7 @@ def parse_gguf_file(path: Path, use_streaming: bool = True) -> GGUFMetadata:
 
 def _parse_gguf_numpy(path: Path) -> GGUFMetadata:
     """Parse GGUF file using numpy/gguf library (legacy method).
-    
+
     This is kept for compatibility but is slower and uses more memory.
     """
     import gguf
@@ -357,10 +356,7 @@ def _parse_gguf_numpy(path: Path) -> GGUFMetadata:
                 break
 
     # Block count / layers
-    if architecture:
-        block_count_key = f"{architecture}.block_count"
-    else:
-        block_count_key = "llama.block_count"
+    block_count_key = f"{architecture}.block_count" if architecture else "llama.block_count"
     num_layers = _get_field(reader, block_count_key)
 
     # Simple string keys
@@ -450,7 +446,7 @@ class ParallelGGUFParser:
 
     def __init__(self, max_workers: int | None = None) -> None:
         """Initialize parser.
-        
+
         Args:
             max_workers: Maximum parallel workers (defaults to CPU count + 2)
         """
@@ -478,13 +474,13 @@ class ParallelGGUFParser:
         use_threads: bool = False,
     ) -> dict[Path, GGUFMetadata | None]:
         """Parse multiple GGUF files in parallel.
-        
+
         Args:
             paths: List of paths to parse
             progress_callback: Optional callback(progress, total) for updates
             use_threads: Use ThreadPoolExecutor instead of ProcessPoolExecutor
                         (better for I/O bound, worse for CPU bound)
-            
+
         Returns:
             Dictionary mapping paths to metadata (None if parsing failed)
         """
@@ -578,10 +574,10 @@ class ParallelGGUFParser:
 
     def parse_single(self, path: Path) -> GGUFMetadata | None:
         """Parse a single file.
-        
+
         Args:
             path: Path to GGUF file
-            
+
         Returns:
             Metadata or None if parsing failed
         """
@@ -607,11 +603,11 @@ def parse_gguf_files(
     max_workers: int | None = None,
 ) -> dict[Path, GGUFMetadata | None]:
     """Parse multiple GGUF files in parallel.
-    
+
     Args:
         paths: List of paths to parse
         max_workers: Maximum parallel workers
-        
+
     Returns:
         Dictionary mapping paths to metadata
     """

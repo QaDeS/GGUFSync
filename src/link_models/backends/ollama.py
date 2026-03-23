@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import OllamaConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, ModelGroup, OllamaConfig
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -21,6 +22,22 @@ class OllamaBackend(Backend):
     This backend creates symlinks in the models directory and generates
     manifests for model discovery.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="ollama",
+        backend_type="ollama",
+        search_paths=[
+            "{PROGRAMDATA}/Ollama",
+            "/usr/local/ollama",
+            "/opt/ollama",
+            "{HOME}/.ollama",
+            "{HOME}/Library/Application Support/ollama",
+        ],
+        executables=["ollama"],
+        default_models_subdir="models",
+        ports=(11434, 11444),
+        docker_images=["ollama"],
+    )
 
     def __init__(self, config: OllamaConfig) -> None:
         """Initialize Ollama backend.
@@ -118,9 +135,8 @@ class OllamaBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate Modelfile if enabled
         if self.ollama_config.generate_modelfile:
@@ -149,9 +165,8 @@ class OllamaBackend(Backend):
 
         # Remove manifest file
         manifest_path = self._get_manifest_path(model_id)
-        if manifest_path.exists():
-            if self._remove_path(manifest_path):
-                result.removed += 1
+        if manifest_path.exists() and self._remove_path(manifest_path):
+            result.removed += 1
 
         return result
 
@@ -196,7 +211,7 @@ class OllamaBackend(Backend):
             Modelfile content string
         """
         lines = [
-            f"# Auto-generated Ollama Modelfile",
+            "# Auto-generated Ollama Modelfile",
             f"# Generated: {datetime.now().isoformat()}",
             f"# Model: {group.display_name}",
             "",

@@ -10,36 +10,35 @@ import yaml
 from pydantic import ValidationError
 
 from .constants import (
-    DEFAULT_MODELS_SRC,
-    DEFAULT_MODELS_DST,
+    DEFAULT_GPT4ALL_DIR,
+    DEFAULT_JAN_DIR,
+    DEFAULT_KOBOLDCPP_DIR,
+    DEFAULT_LLAMA_CPP_PYTHON_DIR,
     DEFAULT_LOCALAI_DIR,
-    DEFAULT_LMSTUDIO_DIR,
+    DEFAULT_MODELS_DST,
+    DEFAULT_MODELS_SRC,
     DEFAULT_OLLAMA_DIR,
     DEFAULT_TEXTGEN_DIR,
-    DEFAULT_GPT4ALL_DIR,
-    DEFAULT_KOBOLDCPP_DIR,
     DEFAULT_VLLM_DIR,
-    DEFAULT_JAN_DIR,
-    DEFAULT_LLAMA_CPP_PYTHON_DIR,
 )
 from .exceptions import ConfigError
 from .logging import get_logger
 from .models import (
     AppConfig,
     BackendConfig,
-    LlamaCppConfig,
-    LocalAIConfig,
-    LMStudioConfig,
-    OllamaConfig,
-    TextGenConfig,
     GPT4AllConfig,
-    KoboldCppConfig,
-    vLLMConfig,
     JanConfig,
+    KoboldCppConfig,
+    LlamaCppConfig,
     LlamaCppPythonConfig,
-    WatchConfig,
+    LMStudioConfig,
+    LocalAIConfig,
     LoggingConfig,
+    OllamaConfig,
     SyncConfig,
+    TextGenConfig,
+    WatchConfig,
+    vLLMConfig,
 )
 
 # Alias for backward compatibility
@@ -74,7 +73,7 @@ def load_yaml_config(path: Path) -> dict[str, Any]:
         ConfigError: If file cannot be loaded
     """
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except FileNotFoundError:
         raise ConfigError(f"Configuration file not found: {path}")

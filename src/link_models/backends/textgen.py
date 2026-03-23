@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import yaml
 
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import TextGenConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, ModelGroup, TextGenConfig
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -21,6 +22,19 @@ class TextGenBackend(Backend):
     TextGen uses a flat directory structure in user_data/models.
     It can optionally generate settings.yaml and per-model configs.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="textgen",
+        backend_type="textgen",
+        search_paths=[
+            "{HOME}/text-generation-webui",
+            "{HOME}/oobabooga",
+            "/opt/textgen",
+        ],
+        executables=["text-generation-server", "textgen"],
+        default_models_subdir="models",
+        ports=(5000, 5010),
+    )
 
     def __init__(self, config: TextGenConfig) -> None:
         """Initialize TextGen backend.
@@ -127,9 +141,8 @@ class TextGenBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate model config if enabled
         if self.textgen_config.generate_model_configs:
@@ -159,9 +172,8 @@ class TextGenBackend(Backend):
         # Remove config file if exists
         if hasattr(self, "configs_dir") and self.configs_dir:
             config_file = self.configs_dir / f"{model_id}.yaml"
-            if config_file.exists():
-                if self._remove_path(config_file):
-                    result.removed += 1
+            if config_file.exists() and self._remove_path(config_file):
+                result.removed += 1
 
         return result
 

@@ -2,20 +2,22 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from link_models.core.sync import ModelFilter, SyncEngine
+from link_models.backends.base import Backend, BackendResult
 from link_models.core.models import (
     AppConfig,
+    BackendConfig,
+    LoggingConfig,
     SyncConfig,
     WatchConfig,
-    LoggingConfig,
-    BackendConfig,
 )
-from link_models.backends.base import Backend, BackendResult
+from link_models.core.sync import ModelFilter, SyncEngine
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class MockBackend(Backend):

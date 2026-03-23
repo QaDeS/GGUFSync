@@ -3,18 +3,42 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult, LinkResult, SyncAction
-from ..core.logging import get_logger, log_action
-from ..core.models import LlamaCppConfig, ModelGroup
+from ..core.logging import get_logger
+from .base import (
+    Backend,
+    BackendDiscoveryConfig,
+    BackendResult,
+    SyncAction,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from ..core.models import LlamaCppConfig, ModelGroup
 
 logger = get_logger(__name__)
 
 
 class LlamaCppBackend(Backend):
     """Backend for llama.cpp model organization."""
+
+    discovery_config = BackendDiscoveryConfig(
+        name="llama_cpp",
+        backend_type="llama_cpp",
+        search_paths=[
+            "/usr/local/share/llama.cpp",
+            "/usr/share/llama.cpp",
+            "{XDG_DATA}/llama.cpp",
+            "{XDG_DATA}/LM Studio/models",
+            "{HOME}/llama.cpp",
+            "{HOME}/llama_models",
+        ],
+        executables=["llama-server"],
+        default_models_subdir=".",
+        ports=(8080, 8090),
+    )
 
     def __init__(self, config: LlamaCppConfig) -> None:
         """Initialize llama.cpp backend.
@@ -198,7 +222,7 @@ class LlamaCppBackend(Backend):
         lines = []
 
         # Add header comments
-        lines.append(f"# Auto-generated models.ini for llama.cpp")
+        lines.append("# Auto-generated models.ini for llama.cpp")
         lines.append(f"# Generated: {datetime.now().isoformat()}")
         lines.append("")
 

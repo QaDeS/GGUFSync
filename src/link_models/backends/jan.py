@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult
 from ..core.logging import get_logger
-from ..core.models import JanConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, JanConfig, ModelGroup
+from .base import Backend, BackendDiscoveryConfig, BackendResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -18,6 +21,21 @@ class JanBackend(Backend):
     Jan (jan.ai) uses a flat directory structure with model metadata.
     Models are stored in the models/ subdirectory with config.json files.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="jan",
+        backend_type="jan",
+        search_paths=[
+            "{LOCALAPPDATA}/Programs/Jan",
+            "{APPDATA}/jan",
+            "{HOME}/Applications/Jan.app",
+            "{HOME}/Library/Application Support/Jan",
+            "{XDG_DATA}/jan",
+        ],
+        executables=["jan"],
+        default_models_subdir="models",
+        ports=(1337, 1340),
+    )
 
     def __init__(self, config: JanConfig) -> None:
         super().__init__(config)

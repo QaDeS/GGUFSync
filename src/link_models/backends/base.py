@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import os
+import platform
 import shutil
+import socket
+import subprocess
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -14,6 +17,255 @@ from ..core.logging import get_logger, log_action
 from ..core.models import BackendConfig, ModelGroup, SyncAction
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class DiscoveredBackend:
+    """Represents a discovered backend installation."""
+
+    name: str
+    backend_type: str
+    install_dir: Path
+    models_dir: Path | None
+    is_running: bool = False
+    port: int | None = None
+
+
+@dataclass
+class BackendDiscoveryConfig:
+    """Configuration for backend discovery.
+
+    Attributes:
+        name: Display name
+        backend_type: Type identifier
+        search_paths: Directories to check for installation
+        executables: Executable names to find in PATH
+        default_models_subdir: Default subdir for models (relative to install)
+        ports: Port range to check for running server
+        docker_images: Docker image patterns to look for
+        models_path_patterns: Patterns to extract model dir from process args
+    """
+
+    name: str
+    backend_type: str
+    search_paths: list[str] = field(default_factory=list)
+    executables: list[str] = field(default_factory=list)
+    default_models_subdir: str = "models"
+    ports: tuple[int, int] = (0, 0)
+    docker_images: list[str] = field(default_factory=list)
+    models_path_patterns: list[str] = field(default_factory=list)
+
+
+def _check_port(port: int) -> bool:
+    """Check if a port is listening."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    try:
+        result = sock.connect_ex(("localhost", port))
+        return result == 0
+    except Exception:
+        return False
+    finally:
+        sock.close()
+
+
+def _get_system_info() -> tuple[str, Path]:
+    """Get system info for discovery.
+
+    Returns:
+        Tuple of (system: str, home: Path)
+    """
+    return platform.system(), Path.home()
+
+
+def _get_config_dir() -> Path:
+    """Get platform-specific config directory."""
+    system, home = _get_system_info()
+    if system == "Windows":
+        return Path(os.environ.get("APPDATA", home / "AppData" / "Roaming"))
+    elif system == "Darwin":
+        return home / "Library" / "Application Support"
+    else:
+        xdg_config = os.environ.get("XDG_CONFIG_HOME", home / ".config")
+        return Path(xdg_config)
+
+
+def _get_data_dir() -> Path:
+    """Get platform-specific data directory."""
+    system, home = _get_system_info()
+    if system == "Windows":
+        return Path(os.environ.get("APPDATA", home / "AppData" / "Roaming"))
+    elif system == "Darwin":
+        return home / "Library" / "Application Support"
+    else:
+        xdg_data = os.environ.get("XDG_DATA_HOME", home / ".local" / "share")
+        return Path(xdg_data)
+
+    def _resolve_path(path: Path) -> Path:
+        """Resolve a path to its absolute, real form."""
+        try:
+            resolved = path.expanduser()
+            return resolved.resolve()
+        except Exception:
+            return path.absolute()
+
+
+def _find_process_model_dir() -> Path | None:
+    """Find model directory from running process command lines."""
+    try:
+        result = subprocess.run(
+            ["ps", "ax", "--no-headers", "-o", "args"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        patterns = [
+            r"[-/]models[/\s]",
+            r"--model-dir[=\s]+(\S+)",
+            r"-m\s+(\S+)",
+            r"MODEL_DIR[=\s]+(\S+)",
+        ]
+        import re
+
+        for line in result.stdout.split("\n"):
+            for pattern in patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    potential = Path(match.group(1) if match.lastindex else match.group(0))
+                    if potential.exists():
+                        return potential
+    except Exception:
+        pass
+    return None
+
+
+def _discover_from_config(config: BackendDiscoveryConfig) -> list[DiscoveredBackend]:
+    """Generic discovery from config."""
+    backends: list[DiscoveredBackend] = []
+    _, home = _get_system_info()
+
+    resolved_paths = []
+    for path in config.search_paths:
+        path = path.replace("{HOME}", str(home))
+        path = path.replace("{XDG_DATA}", str(_get_data_dir()))
+        path = path.replace("{XDG_CONFIG}", str(_get_config_dir()))
+        path = path.replace(
+            "{APPDATA}", os.environ.get("APPDATA", str(home / "AppData" / "Roaming"))
+        )
+
+        if "{LOCALAPPDATA}" in path:
+            path = path.replace("{LOCALAPPDATA}", os.environ.get("LOCALAPPDATA", ""))
+        if "{PROGRAMDATA}" in path:
+            path = path.replace("{PROGRAMDATA}", os.environ.get("PROGRAMDATA", "C:\\ProgramData"))
+
+        p = Path(path)
+        if p.exists():
+            resolved_paths.append(p.resolve())
+
+    for path in resolved_paths:
+        is_running = False
+        port = None
+        if config.ports[1] > 0:
+            for p in range(config.ports[0], config.ports[1]):
+                if _check_port(p):
+                    is_running = True
+                    port = p
+                    break
+
+        models_dir = path / config.default_models_subdir
+        if not models_dir.exists():
+            models_dir = path
+
+        backends.append(
+            DiscoveredBackend(
+                name=config.name,
+                backend_type=config.backend_type,
+                install_dir=path,
+                models_dir=models_dir if models_dir.exists() else None,
+                is_running=is_running,
+                port=port,
+            )
+        )
+
+    for exe in config.executables:
+        exe_path = shutil.which(exe)
+        if exe_path:
+            is_running = False
+            port = None
+            if config.ports[1] > 0:
+                for p in range(config.ports[0], config.ports[1]):
+                    if _check_port(p):
+                        is_running = True
+                        port = p
+                        break
+
+            if not any(b.install_dir == Path(exe_path).parent.resolve() for b in backends):
+                process_model_dir = _find_process_model_dir()
+                backends.append(
+                    DiscoveredBackend(
+                        name=config.name,
+                        backend_type=config.backend_type,
+                        install_dir=Path(exe_path).parent.resolve(),
+                        models_dir=process_model_dir,
+                        is_running=is_running,
+                        port=port,
+                    )
+                )
+
+    if config.docker_images and shutil.which("docker"):
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--format", "{{.ID}}|{{.Names}}|{{.Image}}|{{.Ports}}"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            import re
+
+            for line in result.stdout.strip().split("\n"):
+                if not line.strip():
+                    continue
+                parts = line.split("|")
+                if len(parts) < 3:
+                    continue
+                container_id, name, image = parts[0], parts[1], parts[2].lower()
+                ports = parts[3] if len(parts) > 3 else ""
+
+                for img_pattern in config.docker_images:
+                    if img_pattern.lower() in image or img_pattern.lower() in name:
+                        port = None
+                        port_match = re.search(r":(\d+)->", ports)
+                        if port_match:
+                            port = int(port_match.group(1))
+
+                        models_dir = None
+                        for path in ["/models", "/app/models", "/localai/models"]:
+                            try:
+                                subprocess.run(
+                                    ["docker", "exec", container_id, "test", "-d", path],
+                                    capture_output=True,
+                                    timeout=5,
+                                )
+                                models_dir = Path(path)
+                                break
+                            except Exception:
+                                continue
+
+                        backends.append(
+                            DiscoveredBackend(
+                                name=f"{config.name}_docker",
+                                backend_type=config.backend_type,
+                                install_dir=Path(f"/var/lib/docker/containers/{container_id}"),
+                                models_dir=models_dir,
+                                is_running=port is not None,
+                                port=port,
+                            )
+                        )
+                        break
+        except Exception:
+            pass
+
+    return backends
 
 
 @dataclass
@@ -45,6 +297,8 @@ class BackendResult:
 class Backend(ABC):
     """Abstract base class for all backends."""
 
+    discovery_config: BackendDiscoveryConfig | None = None
+
     def __init__(self, config: BackendConfig) -> None:
         """Initialize backend.
 
@@ -60,6 +314,17 @@ class Backend(ABC):
     def name(self) -> str:
         """Return the backend name."""
         pass
+
+    @classmethod
+    def discover(cls) -> list[DiscoveredBackend]:
+        """Discover this backend type on the system.
+
+        Returns:
+            List of discovered backend instances
+        """
+        if cls.discovery_config is None:
+            return []
+        return _discover_from_config(cls.discovery_config)
 
     @abstractmethod
     def sync_group(
@@ -105,7 +370,7 @@ class Backend(ABC):
         self._set_permissions(self.output_dir)
         self.logger.debug("Backend setup complete", output_dir=str(self.output_dir))
 
-    def cleanup(self) -> None:
+    def cleanup(self) -> None:  # noqa: B027
         """Cleanup any resources. Called during shutdown."""
         pass
 
@@ -406,6 +671,18 @@ class Backend(ABC):
         if not models_dir.exists():
             return result
 
+        for item in models_dir.iterdir():
+            if item.name in skip_dirs:
+                continue
+
+            if item.is_dir() and item.name not in valid_model_ids:
+                if self._remove_path(item):
+                    result.removed += 1
+                else:
+                    result.errors.append(f"Failed to remove orphan: {item}")
+
+        return result
+
     def _load_existing_config(self, path: Path, format: str = "json") -> dict | None:
         """Load existing config file if it exists.
 
@@ -423,12 +700,12 @@ class Backend(ABC):
             if format == "json":
                 import json
 
-                with open(path, "r") as f:
+                with open(path) as f:
                     return json.load(f)
             elif format == "yaml":
                 import yaml
 
-                with open(path, "r") as f:
+                with open(path) as f:
                     return yaml.safe_load(f)
         except Exception as e:
             self.logger.warning("Failed to load existing config", path=str(path), error=str(e))
@@ -465,17 +742,5 @@ class Backend(ABC):
             # None values in existing are treated as "not set", use default
             if value is not None:
                 result[key] = value
-
-        return result
-
-        for item in models_dir.iterdir():
-            if item.name in skip_dirs or not item.is_dir():
-                continue
-
-            if item.name not in valid_model_ids:
-                if self._remove_path(item):
-                    result.removed += 1
-                else:
-                    result.errors.append(f"Failed to remove orphan: {item}")
 
         return result

@@ -3,27 +3,34 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 import yaml
 
 from link_models.backends import (
+    GPT4AllBackend,
+    JanBackend,
+    KoboldCppBackend,
+    LlamaCppPythonBackend,
     OllamaBackend,
     TextGenBackend,
-    GPT4AllBackend,
-    KoboldCppBackend,
     vLLMBackend,
 )
 from link_models.core.models import (
-    OllamaConfig,
-    TextGenConfig,
     GPT4AllConfig,
+    JanConfig,
     KoboldCppConfig,
-    vLLMConfig,
+    LlamaCppPythonConfig,
     ModelGroup,
     ModelInfo,
+    OllamaConfig,
+    TextGenConfig,
+    vLLMConfig,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class TestOllamaBackend:
@@ -376,3 +383,182 @@ class TestBackendCleanup:
         assert result.removed >= 2  # Both dir and kcpps
         assert not orphan_dir.exists()
         assert not orphan_kcpps.exists()
+
+
+class TestJanBackend:
+    """Integration tests for JanBackend."""
+
+    @pytest.fixture
+    def backend(self, temp_dir: Path) -> JanBackend:
+        config = JanConfig(
+            output_dir=temp_dir / "jan_models",
+            generate_metadata=True,
+        )
+        return JanBackend(config)
+
+    @pytest.fixture
+    def model_group(self, temp_dir: Path) -> ModelGroup:
+        source_file = temp_dir / "source" / "llama3-8b.gguf"
+        source_file.parent.mkdir()
+        source_file.write_bytes(b"GGUF content")
+
+        return ModelGroup(
+            base_name="llama3-8b",
+            files=[ModelInfo(path=source_file)],
+            source_dir=source_file.parent,
+        )
+
+    def test_setup_creates_directory(self, backend: JanBackend) -> None:
+        backend.setup()
+        assert backend.output_dir.exists()
+        assert backend.models_dir.exists()
+
+    def test_sync_creates_model_directory(
+        self,
+        backend: JanBackend,
+        model_group: ModelGroup,
+    ) -> None:
+        backend.setup()
+        result = backend.sync_group(model_group, model_group.source_dir)
+
+        assert result.success is True
+        assert result.linked >= 1
+
+        expected_dir = backend.models_dir / "llama3-8b"
+        assert expected_dir.exists()
+
+    def test_sync_generates_model_json(
+        self,
+        backend: JanBackend,
+        model_group: ModelGroup,
+    ) -> None:
+        backend.setup()
+        backend.sync_group(model_group, model_group.source_dir)
+
+        config_path = backend.models_dir / "llama3-8b" / "model.json"
+        assert config_path.exists()
+
+        with open(config_path) as f:
+            config = json.load(f)
+
+        assert config["id"] == "llama3-8b"
+        assert config["object"] == "model"
+        assert "metadata" in config
+
+    def test_remove_group_removes_directory(
+        self,
+        backend: JanBackend,
+        model_group: ModelGroup,
+    ) -> None:
+        backend.setup()
+        backend.sync_group(model_group, model_group.source_dir)
+
+        result = backend.remove_group("llama3-8b")
+
+        assert result.removed >= 1
+        assert not (backend.models_dir / "llama3-8b").exists()
+
+    def test_cleanup_removes_orphans(self, temp_dir: Path) -> None:
+        """Test that Jan backend cleans up orphaned directories."""
+        backend = JanBackend(JanConfig(output_dir=temp_dir / "jan"))
+        backend.setup()
+
+        orphan_dir = backend.models_dir / "orphan-model"
+        orphan_dir.mkdir()
+        (orphan_dir / "model.gguf").write_bytes(b"GGUF")
+
+        result = backend.cleanup_orphans({"other-model"})
+
+        assert result.removed >= 1
+        assert not orphan_dir.exists()
+
+
+class TestLlamaCppPythonBackend:
+    """Integration tests for LlamaCppPythonBackend."""
+
+    @pytest.fixture
+    def backend(self, temp_dir: Path) -> LlamaCppPythonBackend:
+        config = LlamaCppPythonConfig(
+            output_dir=temp_dir / "lcpp_models",
+        )
+        return LlamaCppPythonBackend(config)
+
+    @pytest.fixture
+    def model_group(self, temp_dir: Path) -> ModelGroup:
+        source_file = temp_dir / "source" / "mixtral-8x7b.gguf"
+        source_file.parent.mkdir()
+        source_file.write_bytes(b"GGUF content")
+
+        return ModelGroup(
+            base_name="mixtral-8x7b",
+            files=[ModelInfo(path=source_file)],
+            source_dir=source_file.parent,
+        )
+
+    def test_setup_creates_directory(self, backend: LlamaCppPythonBackend) -> None:
+        backend.setup()
+        assert backend.output_dir.exists()
+
+    def test_sync_creates_model_directory(
+        self,
+        backend: LlamaCppPythonBackend,
+        model_group: ModelGroup,
+    ) -> None:
+        backend.setup()
+        result = backend.sync_group(
+            model_group,
+            model_group.source_dir,
+            context_size=4096,
+            gpu_layers=32,
+            threads=8,
+        )
+
+        assert result.success is True
+        assert result.linked >= 1
+
+        expected_dir = backend.models_dir / "mixtral-8x7b"
+        assert expected_dir.exists()
+
+    def test_sync_accepts_config_parameters(
+        self,
+        backend: LlamaCppPythonBackend,
+        model_group: ModelGroup,
+    ) -> None:
+        backend.setup()
+        result = backend.sync_group(
+            model_group,
+            model_group.source_dir,
+            context_size=8192,
+            gpu_layers=64,
+            threads=16,
+        )
+
+        assert result.success is True
+        assert result.linked >= 1
+
+    def test_remove_group_removes_directory(
+        self,
+        backend: LlamaCppPythonBackend,
+        model_group: ModelGroup,
+    ) -> None:
+        backend.setup()
+        backend.sync_group(model_group, model_group.source_dir)
+
+        result = backend.remove_group("mixtral-8x7b")
+
+        assert result.removed >= 1
+        assert not (backend.models_dir / "mixtral-8x7b").exists()
+
+    def test_cleanup_removes_orphans(self, temp_dir: Path) -> None:
+        """Test that llama-cpp-python backend cleans up orphaned directories."""
+        backend = LlamaCppPythonBackend(LlamaCppPythonConfig(output_dir=temp_dir / "lcpp"))
+        backend.setup()
+
+        orphan_dir = backend.models_dir / "orphan-model"
+        orphan_dir.mkdir()
+        (orphan_dir / "model.gguf").write_bytes(b"GGUF")
+
+        result = backend.cleanup_orphans({"other-model"})
+
+        assert result.removed >= 1
+        assert not orphan_dir.exists()

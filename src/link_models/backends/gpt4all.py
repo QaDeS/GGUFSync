@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-import yaml
-
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import GPT4AllConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, GPT4AllConfig, ModelGroup
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -20,6 +20,19 @@ class GPT4AllBackend(Backend):
     GPT4All uses a flat directory structure with optional config files.
     Models can be configured via the GUI or via JSON config.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="gpt4all",
+        backend_type="gpt4all",
+        search_paths=[
+            "{LOCALAPPDATA}/nomic.ai/GPT4All",
+            "{HOME}/Library/Application Support/nomic.ai/GPT4All",
+            "{XDG_DATA}/gpt4all",
+        ],
+        executables=["gpt4all"],
+        default_models_subdir="models",
+        ports=(4891, 4900),
+    )
 
     def __init__(self, config: GPT4AllConfig) -> None:
         """Initialize GPT4All backend.
@@ -118,9 +131,8 @@ class GPT4AllBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate config if enabled
         if self.gpt4all_config.generate_config:
@@ -150,9 +162,8 @@ class GPT4AllBackend(Backend):
         # Remove config file if exists
         if hasattr(self, "configs_dir") and self.configs_dir:
             config_file = self.configs_dir / f"{model_id}.json"
-            if config_file.exists():
-                if self._remove_path(config_file):
-                    result.removed += 1
+            if config_file.exists() and self._remove_path(config_file):
+                result.removed += 1
 
         return result
 

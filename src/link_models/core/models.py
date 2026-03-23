@@ -11,10 +11,9 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from .constants import (
-    DEFAULT_MODELS_DST,
     GGUF_EXTENSION,
-    MULTIPART_PATTERN,
     MMPROJ_PATTERN,
+    MULTIPART_PATTERN,
 )
 
 

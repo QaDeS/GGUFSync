@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult
 from ..core.logging import get_logger
-from ..core.models import LlamaCppPythonConfig, ModelGroup
+from .base import Backend, BackendDiscoveryConfig, BackendResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from ..core.models import LlamaCppPythonConfig, ModelGroup
 
 logger = get_logger(__name__)
 
@@ -17,6 +21,17 @@ class LlamaCppPythonBackend(Backend):
     llama-cpp-python is a Python binding for llama.cpp that runs as an API server.
     This backend creates symlinks to model files that the server can access.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="llama_cpp_python",
+        backend_type="llama_cpp_python",
+        search_paths=[
+            "{HOME}/llama-cpp-python",
+        ],
+        executables=["llama-cpp-python", "python"],
+        default_models_subdir="models",
+        ports=(8000, 8010),
+    )
 
     def __init__(self, config: LlamaCppPythonConfig) -> None:
         super().__init__(config)

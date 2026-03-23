@@ -5,7 +5,7 @@ from __future__ import annotations
 
 class LinkModelsError(Exception):
     """Base exception for all link_models errors."""
-    
+
     def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
         super().__init__(message)
         self.message = message
@@ -29,7 +29,7 @@ class SyncError(LinkModelsError):
 
 class BackendError(LinkModelsError):
     """Backend-specific errors."""
-    
+
     def __init__(
         self,
         message: str,

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import KoboldCppConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, KoboldCppConfig, ModelGroup
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -19,6 +21,18 @@ class KoboldCppBackend(Backend):
     KoboldCpp uses .kcpps sidecar config files alongside model files.
     This backend creates symlinks and generates .kcpps files.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="koboldcpp",
+        backend_type="koboldcpp",
+        search_paths=[
+            "{HOME}/koboldcpp",
+            "/opt/koboldcpp",
+        ],
+        executables=["koboldcpp"],
+        default_models_subdir=".",
+        ports=(5001, 5010),
+    )
 
     def __init__(self, config: KoboldCppConfig) -> None:
         """Initialize KoboldCpp backend.
@@ -121,9 +135,8 @@ class KoboldCppBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate .kcpps file if enabled
         if self.koboldcpp_config.generate_kcpps:

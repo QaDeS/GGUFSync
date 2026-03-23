@@ -4,19 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 from link_models.core.models import (
-    OllamaConfig,
-    TextGenConfig,
+    AppConfig,
+    BackendConfig,
     GPT4AllConfig,
     KoboldCppConfig,
-    vLLMConfig,
-    SyncConfig,
-    BackendConfig,
-    AppConfig,
-    WatchConfig,
     LoggingConfig,
+    OllamaConfig,
+    SyncConfig,
+    TextGenConfig,
+    WatchConfig,
+    vLLMConfig,
 )
 
 

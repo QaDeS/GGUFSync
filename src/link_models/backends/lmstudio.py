@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import LMStudioConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, LMStudioConfig, ModelGroup
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -20,6 +22,19 @@ class LMStudioBackend(Backend):
     LM Studio uses a specific directory structure and manifest files
     to organize models for its UI.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="lmstudio",
+        backend_type="lmstudio",
+        search_paths=[
+            "{LOCALAPPDATA}/LM Studio",
+            "{HOME}/Library/Application Support/LM Studio",
+            "{XDG_DATA}/lm-studio",
+        ],
+        executables=["lmstudio"],
+        default_models_subdir="models",
+        ports=(1234, 1240),
+    )
 
     def __init__(self, config: LMStudioConfig) -> None:
         """Initialize LM Studio backend.
@@ -127,9 +142,8 @@ class LMStudioBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate metadata file if enabled
         if self.lmstudio_config.generate_manifest:
@@ -158,9 +172,8 @@ class LMStudioBackend(Backend):
 
         # Remove manifest file
         manifest_path = self._get_manifest_path(model_id)
-        if manifest_path.exists():
-            if self._remove_path(manifest_path):
-                result.removed += 1
+        if manifest_path.exists() and self._remove_path(manifest_path):
+            result.removed += 1
 
         return result
 

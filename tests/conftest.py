@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 @pytest.fixture
@@ -19,12 +22,12 @@ def temp_dir() -> Generator[Path, None, None]:
 @pytest.fixture
 def mock_gguf_file(temp_dir: Path) -> Path:
     """Create a mock GGUF file for testing.
-    
+
     Note: This creates a minimal file that looks like a GGUF
     but won't pass actual GGUF parsing. Use for filesystem tests only.
     """
     gguf_path = temp_dir / "test-model-q4_k_m.gguf"
-    
+
     # Write minimal GGUF header magic
     # GGUF magic number: 0x46554747 "GGUF"
     with open(gguf_path, "wb") as f:
@@ -38,7 +41,7 @@ def mock_gguf_file(temp_dir: Path) -> Path:
         f.write(b"\x08\x00")  # Value type (string)
         f.write(b"\x03\x00\x00\x00")  # String length
         f.write(b"bar")  # String value
-    
+
     return gguf_path
 
 
@@ -47,13 +50,13 @@ def source_dir(temp_dir: Path) -> Path:
     """Create a source directory with some test models."""
     src = temp_dir / "models"
     src.mkdir()
-    
+
     # Create some test files
     (src / "model1-q4_k_m.gguf").write_bytes(b"GGUF" + b"\x00" * 100)
     (src / "model2-q5_k_m.gguf").write_bytes(b"GGUF" + b"\x00" * 100)
     (src / "model3-00001-of-00002.gguf").write_bytes(b"GGUF" + b"\x00" * 100)
     (src / "model3-00002-of-00002.gguf").write_bytes(b"GGUF" + b"\x00" * 100)
-    
+
     return src
 
 

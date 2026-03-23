@@ -98,8 +98,8 @@ build-nuitka: clean ## Build standalone executable (Nuitka)
 build-installer: clean ## Build executable with installer
 	$(PYTHON) scripts/build.py --backend pyinstaller --installer --clean
 
-run: ## Run the application in watch mode (for development)
-	$(PYTHON) -m link_models --verbose watch
+run: ## Run the application (e.g., make run ARGS="--help")
+	$(PYTHON) -m link_models --verbose $(ARGS)
 
 sync: ## Run one-time sync (for development)
 	$(PYTHON) -m link_models --verbose sync

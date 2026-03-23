@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import vLLMConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, ModelGroup, vLLMConfig
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
@@ -18,6 +21,19 @@ class vLLMBackend(Backend):
     vLLM uses HuggingFace-style directory structure with config.yaml.
     This backend creates symlinks and generates config files.
     """
+
+    discovery_config = BackendDiscoveryConfig(
+        name="vllm",
+        backend_type="vllm",
+        search_paths=[
+            "/usr/local/share/vllm",
+            "{XDG_DATA}/vllm",
+            "{HOME}/.cache/vllm",
+        ],
+        executables=["vllm"],
+        default_models_subdir=".",
+        ports=(8000, 8010),
+    )
 
     def __init__(self, config: vLLMConfig) -> None:
         """Initialize vLLM backend.
@@ -113,9 +129,8 @@ class vLLMBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate config if enabled
         if self.vllm_config.generate_config:
@@ -145,9 +160,8 @@ class vLLMBackend(Backend):
         # Remove config file if exists
         if hasattr(self, "configs_dir") and self.configs_dir:
             config_file = self.configs_dir / f"{model_id}.yaml"
-            if config_file.exists():
-                if self._remove_path(config_file):
-                    result.removed += 1
+            if config_file.exists() and self._remove_path(config_file):
+                result.removed += 1
 
         return result
 
@@ -209,7 +223,6 @@ class vLLMBackend(Backend):
         }
         config = self._merge_config(existing, defaults, protected)
 
-        import json
 
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)

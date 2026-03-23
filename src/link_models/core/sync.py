@@ -2,27 +2,26 @@
 
 from __future__ import annotations
 
-import os
 import fnmatch
+import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from ..backends.base import Backend, BackendResult
 from .gguf_parser import ParallelGGUFParser, parse_gguf_file
-from .logging import get_logger, log_action
+from .logging import get_logger
 from .models import (
     AppConfig,
-    ModelInfo,
     ModelGroup,
+    ModelInfo,
     SyncEvent,
     SyncEventType,
-    SyncAction,
+    get_mmproj_base,
     get_multipart_base,
     is_partial_download,
-    get_mmproj_base,
     strip_quantization_suffix,
 )
-from ..backends.base import Backend, BackendResult
 
 logger = get_logger(__name__)
 
@@ -48,7 +47,7 @@ class ModelFilter:
             return
 
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 self.patterns = [
                     line.strip() for line in f if line.strip() and not line.strip().startswith("#")
                 ]
@@ -213,10 +212,7 @@ class SyncEngine:
 
         # Check backend-specific filter
         backend_filter = self._get_backend_filter(backend)
-        if backend_filter.should_ignore(model_id):
-            return True
-
-        return False
+        return bool(backend_filter.should_ignore(model_id))
 
     def _backends_need_metadata(self) -> bool:
         """Check if any backend requires GGUF metadata parsing.
@@ -237,12 +233,11 @@ class SyncEngine:
                 # Check if LM Studio has manifest generation enabled
                 from ..backends.lmstudio import LMStudioBackend
 
-                if isinstance(backend, LMStudioBackend):
-                    if (
-                        hasattr(backend, "lmstudio_config")
-                        and backend.lmstudio_config.generate_manifest
-                    ):
-                        return True
+                if isinstance(backend, LMStudioBackend) and (
+                    hasattr(backend, "lmstudio_config")
+                    and backend.lmstudio_config.generate_manifest
+                ):
+                    return True
         return False
 
     def _file_needs_sync(self, model_info: ModelInfo) -> bool:
@@ -492,16 +487,15 @@ class SyncEngine:
                     group_base_stripped == mmproj_base_stripped
                     or group.base_name in mmproj_base
                     or mmproj_base in group.base_name
-                ):
-                    if group.mmproj_file is None:
-                        group.mmproj_file = mmproj_info
-                        matched = True
-                        logger.info(
-                            "Matched mmproj to group",
-                            mmproj_file=mmproj_info.name,
-                            group_id=group.model_id,
-                        )
-                        break
+                ) and group.mmproj_file is None:
+                    group.mmproj_file = mmproj_info
+                    matched = True
+                    logger.info(
+                        "Matched mmproj to group",
+                        mmproj_file=mmproj_info.name,
+                        group_id=group.model_id,
+                    )
+                    break
 
             if not matched:
                 logger.warning("Unmatched mmproj file", file=mmproj_info.name, base=mmproj_base)

@@ -3,64 +3,57 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import anyio
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 from .backends import (
+    GPT4AllBackend,
+    JanBackend,
+    KoboldCppBackend,
     LlamaCppBackend,
-    LocalAIBackend,
+    LlamaCppPythonBackend,
     LMStudioBackend,
+    LocalAIBackend,
     OllamaBackend,
     TextGenBackend,
-    GPT4AllBackend,
-    KoboldCppBackend,
     vLLMBackend,
-    JanBackend,
-    LlamaCppPythonBackend,
 )
-from .backends.base import Backend
 from .core.config import ConfigLoader
 from .core.constants import (
-    DEFAULT_MODELS_SRC,
-    DEFAULT_MODELS_DST,
-    DEFAULT_LOCALAI_DIR,
     DEFAULT_LMSTUDIO_DIR,
-    DEFAULT_OLLAMA_DIR,
-    DEFAULT_TEXTGEN_DIR,
-    DEFAULT_GPT4ALL_DIR,
-    DEFAULT_KOBOLDCPP_DIR,
-    DEFAULT_VLLM_DIR,
-    DEFAULT_JAN_DIR,
-    DEFAULT_LLAMA_CPP_PYTHON_DIR,
+    DEFAULT_LOCALAI_DIR,
+    DEFAULT_MODELS_DST,
+    DEFAULT_MODELS_SRC,
     DEFAULT_SERVICE_NAME,
 )
+from .core.discovery import BackendDiscovery, create_config_from_discovered
 from .core.exceptions import LinkModelsError
-from .core.logging import setup_logging, get_logger
+from .core.logging import get_logger, setup_logging
 from .core.models import (
+    AppConfig,
+    GPT4AllConfig,
+    JanConfig,
+    KoboldCppConfig,
     LlamaCppConfig,
-    LocalAIConfig,
+    LlamaCppPythonConfig,
     LMStudioConfig,
+    LocalAIConfig,
     OllamaConfig,
     TextGenConfig,
-    GPT4AllConfig,
-    KoboldCppConfig,
     vLLMConfig,
-    JanConfig,
-    LlamaCppPythonConfig,
-    WatchConfig,
-    AppConfig,
 )
 from .core.service import ServiceInstaller
 from .core.sync import SyncEngine
 from .core.watcher import FileSystemWatcher
+
+if TYPE_CHECKING:
+    from .backends.base import Backend
 
 # Rich console for pretty output
 console = Console()
@@ -360,13 +353,13 @@ def watch(
         None,
         "--llama-cpp",
         "--llama",
-        help=f"llama.cpp output directory",
+        help="llama.cpp output directory",
     ),
     localai_dir: Path | None = typer.Option(
         None,
         "--localai",
         "-l",
-        help=f"LocalAI output directory",
+        help="LocalAI output directory",
     ),
     config_file: Path | None = typer.Option(
         None,
@@ -485,7 +478,7 @@ def service(
         try:
             installer.install()
             console.print(f"[green]Service '{name}' installed successfully[/green]")
-            console.print(f"[dim]Start with: [bold]link-models service start[/bold][/dim]")
+            console.print("[dim]Start with: [bold]link-models service start[/bold][/dim]")
         except LinkModelsError as e:
             console.print(f"[red]Failed to install service: {e.message}[/red]")
             raise typer.Exit(1)
@@ -560,10 +553,76 @@ def config(
 
         console.print(Panel.fit("[bold]Current Configuration[/bold]"))
         console.print(f"Source: [cyan]{cfg.source_dir}[/cyan]")
-        console.print(f"\nBackends:")
+        console.print("\nBackends:")
         for name, backend in cfg.backends.items():
             status = "[green]enabled[/green]" if backend.enabled else "[red]disabled[/red]"
             console.print(f"  {name}: {status} -> [cyan]{backend.output_dir}[/cyan]")
+
+
+@app.command()
+def discover(
+    generate_config: bool = typer.Option(
+        False,
+        "--generate-config",
+        "-g",
+        help="Generate config file with discovered backends",
+    ),
+    output: Path = typer.Option(
+        Path("link_models.yaml"),
+        "--output",
+        "-o",
+        help="Output path for generated config",
+    ),
+) -> None:
+    """Auto-discover installed LLM inference backends."""
+    try:
+        discovery = BackendDiscovery()
+        backends = discovery.discover_all()
+
+        if not backends:
+            console.print("[yellow]No backends discovered[/yellow]")
+            return
+
+        # Display discovered backends
+        table = Table(title="Discovered Backends")
+        table.add_column("Name", style="cyan")
+        table.add_column("Type", style="blue")
+        table.add_column("Install Dir", style="dim")
+        table.add_column("Models Dir", style="green")
+        table.add_column("Running", style="yellow")
+        table.add_column("Port", style="magenta")
+
+        for backend in backends:
+            running = "[green]Yes[/green]" if backend.is_running else "[red]No[/red]"
+            port = str(backend.port) if backend.port else "-"
+            table.add_row(
+                backend.name,
+                backend.backend_type,
+                str(backend.install_dir)[:40],
+                str(backend.models_dir)[:40] if backend.models_dir else "-",
+                running,
+                port,
+            )
+
+        console.print(table)
+
+        # Generate config if requested
+        if generate_config:
+            config_dict = create_config_from_discovered(backends)
+            import yaml
+
+            config_yaml = yaml.dump({"backends": config_dict}, default_flow_style=False)
+
+            with open(output, "w") as f:
+                f.write(config_yaml)
+
+            console.print(f"\n[green]Configuration written to: {output}[/green]")
+            console.print("[dim]Edit this file and use with: link-models -c {output} sync[/dim]")
+
+    except Exception as e:
+        logger.exception("Discovery failed")
+        console.print(f"[red]Discovery failed: {e}[/red]")
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

@@ -3,20 +3,38 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 
 import yaml
 
-from .base import Backend, BackendResult, SyncAction
 from ..core.logging import get_logger
-from ..core.models import LocalAIConfig, ModelGroup, GGUFMetadata
+from ..core.models import GGUFMetadata, LocalAIConfig, ModelGroup
+from .base import Backend, BackendDiscoveryConfig, BackendResult, SyncAction
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 logger = get_logger(__name__)
 
 
 class LocalAIBackend(Backend):
     """Backend for LocalAI model organization."""
+
+    discovery_config = BackendDiscoveryConfig(
+        name="localai",
+        backend_type="localai",
+        search_paths=[
+            "/usr/local/share/localai",
+            "/usr/share/localai",
+            "{XDG_DATA}/localai",
+            "{HOME}/.localai",
+            "/localai",
+        ],
+        executables=["localai"],
+        default_models_subdir="models",
+        ports=(8080, 8085),
+        docker_images=["localai", "mudler/localai"],
+    )
 
     def __init__(self, config: LocalAIConfig) -> None:
         """Initialize LocalAI backend.
@@ -147,9 +165,8 @@ class LocalAIBackend(Backend):
                 prefer_hardlink=self.config.prefer_hardlinks,
             )
 
-            if link_result.success:
-                if link_result.action == SyncAction.CREATE:
-                    result.linked += 1
+            if link_result.success and link_result.action == SyncAction.CREATE:
+                result.linked += 1
 
         # Generate/update YAML config
         if self.localai_config.generate_yaml:
@@ -183,9 +200,8 @@ class LocalAIBackend(Backend):
 
         # Remove YAML config
         yaml_path = self._get_yaml_path(model_id)
-        if yaml_path.exists():
-            if self._remove_path(yaml_path):
-                result.removed += 1
+        if yaml_path.exists() and self._remove_path(yaml_path):
+            result.removed += 1
 
         return result
 
