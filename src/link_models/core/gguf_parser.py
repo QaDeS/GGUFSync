@@ -59,43 +59,43 @@ def _read_gguf_string(f: Any) -> str | None:
     len_bytes = f.read(8)
     if len(len_bytes) < 8:
         return None
-    length = struct.unpack('<Q', len_bytes)[0]
+    length = struct.unpack("<Q", len_bytes)[0]
     data = f.read(length)
-    return data.decode('utf-8', errors='replace') if data else ""
+    return data.decode("utf-8", errors="replace") if data else ""
 
 
 def _read_value(f: Any, val_type: int) -> Any:
     """Read a value of given type from file."""
     if val_type == GGUF_TYPE_UINT8:
-        return struct.unpack('<B', f.read(1))[0]
+        return struct.unpack("<B", f.read(1))[0]
     elif val_type == GGUF_TYPE_INT8:
-        return struct.unpack('<b', f.read(1))[0]
+        return struct.unpack("<b", f.read(1))[0]
     elif val_type == GGUF_TYPE_UINT16:
-        return struct.unpack('<H', f.read(2))[0]
+        return struct.unpack("<H", f.read(2))[0]
     elif val_type == GGUF_TYPE_INT16:
-        return struct.unpack('<h', f.read(2))[0]
+        return struct.unpack("<h", f.read(2))[0]
     elif val_type == GGUF_TYPE_UINT32:
-        return struct.unpack('<I', f.read(4))[0]
+        return struct.unpack("<I", f.read(4))[0]
     elif val_type == GGUF_TYPE_INT32:
-        return struct.unpack('<i', f.read(4))[0]
+        return struct.unpack("<i", f.read(4))[0]
     elif val_type == GGUF_TYPE_FLOAT32:
-        return struct.unpack('<f', f.read(4))[0]
+        return struct.unpack("<f", f.read(4))[0]
     elif val_type == GGUF_TYPE_BOOL:
-        return struct.unpack('<B', f.read(1))[0] != 0
+        return struct.unpack("<B", f.read(1))[0] != 0
     elif val_type == GGUF_TYPE_STRING:
         return _read_gguf_string(f)
     elif val_type == GGUF_TYPE_ARRAY:
-        raw_itype = struct.unpack('<I', f.read(4))[0]
-        alen = struct.unpack('<Q', f.read(8))[0]
+        raw_itype = struct.unpack("<I", f.read(4))[0]
+        alen = struct.unpack("<Q", f.read(8))[0]
         return [_read_value(f, raw_itype) for _ in range(alen)]
     elif val_type == GGUF_TYPE_UINT64:
-        return struct.unpack('<Q', f.read(8))[0]
+        return struct.unpack("<Q", f.read(8))[0]
     elif val_type == GGUF_TYPE_INT64:
-        return struct.unpack('<q', f.read(8))[0]
+        return struct.unpack("<q", f.read(8))[0]
     elif val_type == GGUF_TYPE_FLOAT64:
-        return struct.unpack('<d', f.read(8))[0]
+        return struct.unpack("<d", f.read(8))[0]
     else:
-        raise ValueError(f'Unknown GGUF value type: {val_type}')
+        raise ValueError(f"Unknown GGUF value type: {val_type}")
 
 
 def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
@@ -118,7 +118,7 @@ def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
     metadata: dict[str, Any] = {}
 
     try:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             # Read header (24 bytes)
             # 4 bytes: magic
             # 4 bytes: version
@@ -128,14 +128,14 @@ def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
             if len(header) < 4:
                 raise ValueError("File too small to be a valid GGUF file")
 
-            magic = struct.unpack('<I', header)[0]
+            magic = struct.unpack("<I", header)[0]
             if magic != GGUF_MAGIC:
                 raise ValueError(f"Invalid GGUF magic: {magic:#x}")
 
             version_bytes = f.read(4)
             if len(version_bytes) < 4:
                 raise ValueError("File truncated at version field")
-            version = struct.unpack('<I', version_bytes)[0]
+            version = struct.unpack("<I", version_bytes)[0]
 
             if version not in (2, 3):
                 raise ValueError(f"Unsupported GGUF version: {version}")
@@ -149,7 +149,7 @@ def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
             kv_count_data = f.read(8)
             if len(kv_count_data) < 8:
                 raise ValueError("File truncated at metadata_kv_count field")
-            kv_count = struct.unpack('<Q', kv_count_data)[0]
+            kv_count = struct.unpack("<Q", kv_count_data)[0]
 
             # Read metadata key-value pairs
             for _ in range(kv_count):
@@ -162,7 +162,7 @@ def parse_gguf_metadata_streaming(path: Path) -> dict[str, Any]:
                 type_data = f.read(4)
                 if len(type_data) < 4:
                     raise ValueError("File truncated while reading value type")
-                val_type = struct.unpack('<I', type_data)[0]
+                val_type = struct.unpack("<I", type_data)[0]
 
                 # Read value
                 try:
@@ -316,7 +316,7 @@ def _parse_gguf_numpy(path: Path) -> GGUFMetadata:
             field = reader.get_field(key)
             if field is None:
                 return None
-            if not hasattr(field, 'data') or not field.data:
+            if not hasattr(field, "data") or not field.data:
                 return None
 
             idx = field.data[0]
@@ -327,7 +327,7 @@ def _parse_gguf_numpy(path: Path) -> GGUFMetadata:
 
             if is_str:
                 if isinstance(val, (bytes, bytearray)):
-                    return val.decode('utf-8', errors='replace')
+                    return val.decode("utf-8", errors="replace")
                 return str(val)
             return val
         except (IndexError, AttributeError, UnicodeDecodeError):
@@ -390,9 +390,9 @@ def _extract_stop_tokens_numpy(reader: Any) -> list[str]:
 
     # Try to get EOS token ID and look up token
     eos_field = reader.get_field(GGUF_KEYS["eos_token_id"])
-    if eos_field and hasattr(eos_field, 'data') and eos_field.data:
+    if eos_field and hasattr(eos_field, "data") and eos_field.data:
         tokens_field = reader.get_field(GGUF_KEYS["tokens"])
-        if tokens_field and hasattr(tokens_field, 'parts'):
+        if tokens_field and hasattr(tokens_field, "parts"):
             for idx in eos_field.data:
                 try:
                     if isinstance(idx, (list, tuple)):
@@ -401,7 +401,7 @@ def _extract_stop_tokens_numpy(reader: Any) -> list[str]:
                                 token_idx = tokens_field.data[i]
                                 token_bytes = tokens_field.parts[token_idx]
                                 if isinstance(token_bytes, bytes):
-                                    token_str = token_bytes.decode('utf-8', errors='replace')
+                                    token_str = token_bytes.decode("utf-8", errors="replace")
                                 else:
                                     token_str = str(token_bytes)
                                 if token_str and token_str not in stop_tokens:
@@ -410,7 +410,7 @@ def _extract_stop_tokens_numpy(reader: Any) -> list[str]:
                         token_idx = tokens_field.data[idx]
                         token_bytes = tokens_field.parts[token_idx]
                         if isinstance(token_bytes, bytes):
-                            token_str = token_bytes.decode('utf-8', errors='replace')
+                            token_str = token_bytes.decode("utf-8", errors="replace")
                         else:
                             token_str = str(token_bytes)
                         if token_str and token_str not in stop_tokens:
@@ -420,14 +420,14 @@ def _extract_stop_tokens_numpy(reader: Any) -> list[str]:
 
     # Scan for special EOS markers
     tokens_field = reader.get_field(GGUF_KEYS["tokens"])
-    if tokens_field and hasattr(tokens_field, 'parts'):
+    if tokens_field and hasattr(tokens_field, "parts"):
         try:
             for i, idx in enumerate(tokens_field.data):
                 if idx >= len(tokens_field.parts):
                     continue
                 raw_bytes = tokens_field.parts[idx]
                 if isinstance(raw_bytes, bytes):
-                    token_str = raw_bytes.decode('utf-8', errors='replace')
+                    token_str = raw_bytes.decode("utf-8", errors="replace")
                 else:
                     token_str = str(raw_bytes)
 
@@ -551,10 +551,7 @@ class ParallelGGUFParser:
         if not self._executor:
             raise RuntimeError("Parser not started. Use as context manager.")
 
-        futures = {
-            self._executor.submit(_parse_worker, path): path
-            for path in paths
-        }
+        futures = {self._executor.submit(_parse_worker, path): path for path in paths}
 
         for future in concurrent.futures.as_completed(futures):
             path = futures[future]

@@ -39,7 +39,11 @@ def setup_logging(
     if json_format:
         # Production JSON format
         structlog.configure(
-            processors=[*shared_processors, structlog.processors.dict_tracebacks, structlog.processors.JSONRenderer()],
+            processors=[
+                *shared_processors,
+                structlog.processors.dict_tracebacks,
+                structlog.processors.JSONRenderer(),
+            ],
             wrapper_class=structlog.make_filtering_bound_logger(
                 10 if verbose else 20  # DEBUG or INFO
             ),
@@ -50,10 +54,11 @@ def setup_logging(
     else:
         # Development console format with rich colors
         structlog.configure(
-            processors=[*shared_processors, structlog.dev.ConsoleRenderer(colors=True, pad_level=False)],
-            wrapper_class=structlog.make_filtering_bound_logger(
-                10 if verbose else 20
-            ),
+            processors=[
+                *shared_processors,
+                structlog.dev.ConsoleRenderer(colors=True, pad_level=False),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(10 if verbose else 20),
             context_class=dict,
             logger_factory=structlog.PrintLoggerFactory(),
             cache_logger_on_first_use=True,
@@ -77,6 +82,7 @@ def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
     if name is None:
         # Get caller's module name
         import inspect
+
         frame = inspect.currentframe()
         if frame and frame.f_back:
             module = inspect.getmodule(frame.f_back)

@@ -223,7 +223,6 @@ class vLLMBackend(Backend):
         }
         config = self._merge_config(existing, defaults, protected)
 
-
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2)
 

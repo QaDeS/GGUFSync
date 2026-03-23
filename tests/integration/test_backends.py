@@ -218,6 +218,7 @@ class TestLMStudioBackend:
         assert manifest_file.exists()
 
         import json
+
         manifest = json.loads(manifest_file.read_text())
         assert manifest["id"] == "test-model"
         assert manifest["has_vision"] is False

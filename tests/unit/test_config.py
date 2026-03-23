@@ -154,7 +154,7 @@ class TestConfigLoader:
                     "enabled": True,
                     "output_dir": "/custom/llama",
                 }
-            }
+            },
         }
         config_path.write_text(yaml.dump(config_data))
 
@@ -171,10 +171,7 @@ class TestConfigLoader:
         config_path.write_text(yaml.dump(config_data))
 
         loader = ConfigLoader()
-        config = loader.load(
-            config_path=config_path,
-            cli_args={"source_dir": "/cli/models"}
-        )
+        config = loader.load(config_path=config_path, cli_args={"source_dir": "/cli/models"})
 
         assert str(config.source_dir) == "/cli/models"
 

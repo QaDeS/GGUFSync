@@ -36,6 +36,7 @@ EventHandler = Callable[[SyncEvent], Any]
 @dataclass
 class PendingDownload:
     """Tracks a file that appears to be downloading."""
+
     path: Path
     first_seen: float = field(default_factory=time.time)
     last_check: float = field(default_factory=time.time)

@@ -70,8 +70,9 @@ test-cov: ## Run tests with coverage
 lint: ## Run linter (ruff)
 	$(RUFF) check src tests
 
-lint-fix: ## Run linter with auto-fix
+lint-fix: ## Run linter with auto-fix and format
 	$(RUFF) check --fix src tests
+	$(RUFF) format src tests
 
 format: ## Format code with ruff
 	$(RUFF) format src tests

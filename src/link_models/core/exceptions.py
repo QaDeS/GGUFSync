@@ -14,16 +14,19 @@ class LinkModelsError(Exception):
 
 class ConfigError(LinkModelsError):
     """Configuration-related errors."""
+
     pass
 
 
 class GGUFError(LinkModelsError):
     """GGUF parsing errors."""
+
     pass
 
 
 class SyncError(LinkModelsError):
     """File synchronization errors."""
+
     pass
 
 
@@ -43,9 +46,11 @@ class BackendError(LinkModelsError):
 
 class WatchError(LinkModelsError):
     """Filesystem watching errors."""
+
     pass
 
 
 class ServiceError(LinkModelsError):
     """Service installation/management errors."""
+
     pass

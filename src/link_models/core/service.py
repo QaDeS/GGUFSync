@@ -18,7 +18,7 @@ from .logging import get_logger
 logger = get_logger(__name__)
 
 # Valid service name pattern (alphanumeric, hyphen, underscore)
-VALID_SERVICE_NAME_PATTERN = re.compile(r'^[a-zA-Z0-9_-]+$')
+VALID_SERVICE_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 class ServiceInstaller:
@@ -214,8 +214,10 @@ class ServiceInstaller:
                 [
                     "useradd",
                     "-r",
-                    "-s", "/bin/false",
-                    "-d", "/nonexistent",
+                    "-s",
+                    "/bin/false",
+                    "-d",
+                    "/nonexistent",
                     "-M",
                     "localai",
                 ],
@@ -223,7 +225,7 @@ class ServiceInstaller:
             )
 
         # Determine executable path
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             # Running as compiled executable
             exec_path = self.executable_path
         else:
@@ -238,7 +240,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart={exec_path} {' '.join(args or ['watch'])}
+ExecStart={exec_path} {" ".join(args or ["watch"])}
 Restart=always
 RestartSec=10
 User=localai
@@ -269,9 +271,7 @@ WantedBy=multi-user.target
             logger.info(f"Installed systemd service: {service_path}")
 
         except PermissionError:
-            raise ServiceError(
-                "Permission denied. Run with sudo to install service."
-            )
+            raise ServiceError("Permission denied. Run with sudo to install service.")
         except Exception as e:
             raise ServiceError(f"Failed to install systemd service: {e}")
 
@@ -299,16 +299,14 @@ WantedBy=multi-user.target
             logger.info(f"Uninstalled systemd service: {service_path}")
 
         except PermissionError:
-            raise ServiceError(
-                "Permission denied. Run with sudo to uninstall service."
-            )
+            raise ServiceError("Permission denied. Run with sudo to uninstall service.")
         except Exception as e:
             raise ServiceError(f"Failed to uninstall systemd service: {e}")
 
     def _install_launchd(self, args: list[str] | None = None) -> None:
         """Install launchd plist on macOS."""
         # Determine executable path
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             exec_path = self.executable_path
         else:
             exec_path = self.executable_path
@@ -323,7 +321,7 @@ WantedBy=multi-user.target
     <key>ProgramArguments</key>
     <array>
         <string>{exec_path}</string>
-{chr(10).join(f'        <string>{arg}</string>' for arg in (args or ["watch"]))}
+{chr(10).join(f"        <string>{arg}</string>" for arg in (args or ["watch"]))}
     </array>
     <key>RunAtLoad</key>
     <true/>

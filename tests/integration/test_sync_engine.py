@@ -43,7 +43,7 @@ class TestSyncEngine:
             backends={
                 "llama_cpp": LlamaCppConfig(output_dir=setup_dirs["llama"]),
                 "localai": LocalAIConfig(output_dir=setup_dirs["localai"]),
-            }
+            },
         )
 
         backends = [
@@ -85,8 +85,12 @@ class TestSyncEngine:
         setup_dirs: dict[str, Path],
     ) -> None:
         # Create multipart model files
-        (setup_dirs["source"] / "big-model-00001-of-00002.gguf").write_bytes(b"GGUF1" + b"\x00" * 100)
-        (setup_dirs["source"] / "big-model-00002-of-00002.gguf").write_bytes(b"GGUF2" + b"\x00" * 100)
+        (setup_dirs["source"] / "big-model-00001-of-00002.gguf").write_bytes(
+            b"GGUF1" + b"\x00" * 100
+        )
+        (setup_dirs["source"] / "big-model-00002-of-00002.gguf").write_bytes(
+            b"GGUF2" + b"\x00" * 100
+        )
 
         engine.setup()
         engine.full_sync()
