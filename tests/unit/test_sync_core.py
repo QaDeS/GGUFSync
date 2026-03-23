@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from gguf_sync.core.models import AppConfig, LlamaCppConfig, ModelInfo, SyncEvent, SyncEventType
+from gguf_sync.core.models import AppConfig
 from gguf_sync.core.sync import ModelFilter, SyncEngine
 
 
