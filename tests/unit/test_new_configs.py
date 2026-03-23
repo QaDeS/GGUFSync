@@ -171,7 +171,7 @@ class TestSyncConfig:
 
     def test_global_ignore_file_set(self, temp_dir: Path) -> None:
         """Test global_ignore_file can be set."""
-        ignore_path = temp_dir / "ignore.txt"
+        ignore_path = (temp_dir / "ignore.txt").resolve()
         config = SyncConfig(global_ignore_file=ignore_path)
 
         assert config.global_ignore_file == ignore_path
@@ -195,7 +195,7 @@ class TestBackendConfig:
 
     def test_ignore_file_set(self, temp_dir: Path) -> None:
         """Test ignore_file can be set."""
-        ignore_path = temp_dir / "ignore.txt"
+        ignore_path = (temp_dir / "ignore.txt").resolve()
         config = BackendConfig(
             output_dir=temp_dir / "models",
             ignore_file=ignore_path,

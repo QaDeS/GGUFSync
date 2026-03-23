@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def temp_dir() -> Generator[Path, None, None]:
     """Create a temporary directory for tests."""
     with tempfile.TemporaryDirectory() as tmp:
-        yield Path(tmp)
+        yield Path(tmp).resolve()
 
 
 @pytest.fixture

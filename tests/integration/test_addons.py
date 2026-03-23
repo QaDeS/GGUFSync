@@ -169,8 +169,7 @@ class TestAddOnlySync:
 
     def test_global_ignore_file_config(self, temp_dir: Path) -> None:
         """Test global ignore file configuration."""
-        ignore_path = temp_dir / "global-ignore.txt"
-        ignore_path.write_text("model-a\nmodel-b\n")
+        ignore_path = (temp_dir / "global-ignore.txt").resolve()
 
         config = AppConfig(
             source_dir=temp_dir / "models",
@@ -184,7 +183,7 @@ class TestAddOnlySync:
 
     def test_backend_ignore_file_config(self, temp_dir: Path) -> None:
         """Test backend-specific ignore file configuration."""
-        ignore_path = temp_dir / "ollama-ignore.txt"
+        ignore_path = (temp_dir / "ollama-ignore.txt").resolve()
 
         config = AppConfig(
             source_dir=temp_dir / "models",

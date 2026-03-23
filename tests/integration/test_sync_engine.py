@@ -27,9 +27,9 @@ class TestSyncEngine:
     def setup_dirs(self, temp_dir: Path) -> dict[str, Path]:
         """Create source and destination directories."""
         dirs = {
-            "source": temp_dir / "models",
-            "llama": temp_dir / "llama_models",
-            "localai": temp_dir / "localai_models",
+            "source": (temp_dir / "models").resolve(),
+            "llama": (temp_dir / "llama_models").resolve(),
+            "localai": (temp_dir / "localai_models").resolve(),
         }
         for d in dirs.values():
             d.mkdir()
@@ -210,7 +210,7 @@ class TestSyncEngine:
 
         stats = engine.get_stats()
 
-        assert stats["source_dir"] == str(setup_dirs["source"])
+        assert stats["source_dir"] == str(setup_dirs["source"].resolve())
         assert stats["total_files"] == 2
         assert stats["total_groups"] == 2
         assert "llama.cpp" in stats["backends"]

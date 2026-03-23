@@ -89,20 +89,20 @@ class TestGetEnvConfig:
     """Tests for get_env_config function."""
 
     def test_single_level_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("LINK_MODELS_SOURCE_DIR", "/models")
+        monkeypatch.setenv("GGUF_SYNC_SOURCE_DIR", "/models")
 
         result = get_env_config()
         assert result == {"source_dir": "/models"}
 
     def test_nested_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("LINK_MODELS_BACKENDS__LLAMA_CPP__ENABLED", "true")
+        monkeypatch.setenv("GGUF_SYNC_BACKENDS__LLAMA_CPP__ENABLED", "true")
 
         result = get_env_config()
         assert result == {"backends": {"llama_cpp": {"enabled": True}}}
 
     def test_multiple_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("LINK_MODELS_SOURCE_DIR", "/models")
-        monkeypatch.setenv("LINK_MODELS_LOGGING__LEVEL", "DEBUG")
+        monkeypatch.setenv("GGUF_SYNC_SOURCE_DIR", "/models")
+        monkeypatch.setenv("GGUF_SYNC_LOGGING__LEVEL", "DEBUG")
 
         result = get_env_config()
         assert result["source_dir"] == "/models"
@@ -110,7 +110,7 @@ class TestGetEnvConfig:
 
     def test_ignores_non_prefixed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OTHER_VAR", "value")
-        monkeypatch.setenv("LINK_MODELS_KEY", "value2")
+        monkeypatch.setenv("GGUF_SYNC_KEY", "value2")
 
         result = get_env_config()
         assert "other_var" not in result
@@ -184,7 +184,7 @@ class TestConfigLoader:
         config_data = {"source_dir": "/file/models"}
         config_path.write_text(yaml.dump(config_data))
 
-        monkeypatch.setenv("LINK_MODELS_SOURCE_DIR", "/env/models")
+        monkeypatch.setenv("GGUF_SYNC_SOURCE_DIR", "/env/models")
 
         loader = ConfigLoader()
         config = loader.load(config_path=config_path)

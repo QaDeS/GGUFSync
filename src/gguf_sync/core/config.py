@@ -86,13 +86,13 @@ def load_yaml_config(path: Path) -> dict[str, Any]:
 def get_env_config() -> dict[str, Any]:
     """Load configuration from environment variables.
 
-    Environment variables are expected to be prefixed with LINK_MODELS_
+    Environment variables are expected to be prefixed with GGUFSYNC_
     and use double underscore as nested key separator.
 
     Examples:
-        LINK_MODELS_SOURCE_DIR=/models
-        LINK_MODELS_BACKENDS__LLAMA_CPP__OUTPUT_DIR=/llama_models
-        LINK_MODELS_WATCH__ENABLED=true
+        GGUFSYNC_SOURCE_DIR=/models
+        GGUFSYNC_BACKENDS__LLAMA_CPP__OUTPUT_DIR=/llama_models
+        GGUFSYNC_WATCH__ENABLED=true
 
     Returns:
         Configuration dictionary
