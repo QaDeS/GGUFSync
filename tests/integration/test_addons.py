@@ -227,7 +227,7 @@ class TestSyncEngineFilters:
 
     def test_backend_filter_from_file(self, temp_dir: Path) -> None:
         """Test that backend filter loads from output dir."""
-        ignore_file = temp_dir / "backend1" / ".linkmodelsignore"
+        ignore_file = temp_dir / "backend1" / ".ggufignore"
         ignore_file.parent.mkdir()
         ignore_file.write_text("model-a\n")
 

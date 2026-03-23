@@ -120,7 +120,7 @@ class SyncEngine:
             filter = ModelFilter()
 
             # Check for backend-specific ignore file in output directory
-            ignore_file = backend.output_dir / ".linkmodelsignore"
+            ignore_file = backend.output_dir / ".ggufignore"
             if ignore_file.exists():
                 filter.load_from_file(ignore_file)
 

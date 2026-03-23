@@ -480,7 +480,7 @@ class IgnoreConfig(BaseModel):
     """Configuration for per-backend model filtering."""
 
     enabled: bool = True
-    ignore_file: Path = Field(default_factory=lambda: Path(".linkmodelsignore"))
+    ignore_file: Path = Field(default_factory=lambda: Path(".ggufignore"))
 
     @field_validator("ignore_file")
     @classmethod
