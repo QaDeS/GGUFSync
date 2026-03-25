@@ -211,6 +211,10 @@ class DownloadDetector:
             if pending.real_name:
                 paths.add(pending.path.parent / pending.real_name)
         return paths
+    
+    def is_tracked(self, path: Path) -> bool:
+        """Check if a path is already being tracked as a pending download."""
+        return path in self._pending
 
 
 class ModelEventHandler(FileSystemEventHandler):
@@ -221,10 +225,12 @@ class ModelEventHandler(FileSystemEventHandler):
         callback: EventHandler,
         source_dirs: list[Path],
         download_detector: DownloadDetector,
+        cooldown_manager=None,  # Optional: SyncCooldownManager for multi-source
     ) -> None:
         self.callback = callback
         self.source_dirs = [d.resolve() for d in source_dirs]
         self.download_detector = download_detector
+        self.cooldown_manager = cooldown_manager
 
     def _get_source_dir(self, path: Path) -> Path | None:
         """Determine which source directory a path belongs to."""
@@ -295,7 +301,9 @@ class ModelEventHandler(FileSystemEventHandler):
             is_complete, final_path = self.download_detector.check_complete(path)
             if not is_complete:
                 # Still downloading, will be picked up by polling
-                logger.debug("File still downloading", filename=path.name)
+                # Only log once per file to prevent spam
+                if not self.download_detector.is_tracked(path):
+                    logger.debug("File downloading, tracking progress", filename=path.name)
                 return
             path = final_path or path
 
@@ -322,6 +330,14 @@ class ModelEventHandler(FileSystemEventHandler):
         if event.is_directory:
             logger.debug("Ignoring directory creation", path=event.src_path)
             return
+        
+        path = Path(event.src_path)
+        
+        # Check cooldown (for multi-source mode)
+        if self.cooldown_manager and self.cooldown_manager.is_in_cooldown(path):
+            logger.debug("Ignoring self-triggered create event (cooldown)", path=str(path))
+            return
+        
         logger.debug("File created event", path=event.src_path)
         self._handle_file_event(event, SyncEventType.FILE_CREATED)
 
@@ -329,6 +345,14 @@ class ModelEventHandler(FileSystemEventHandler):
         """Handle file modification."""
         if event.is_directory:
             return
+        
+        path = Path(event.src_path)
+        
+        # Check cooldown (for multi-source mode)
+        if self.cooldown_manager and self.cooldown_manager.is_in_cooldown(path):
+            logger.debug("Ignoring self-triggered modify event (cooldown)", path=str(path))
+            return
+        
         logger.debug("File modified event", path=event.src_path)
         self._handle_file_event(event, SyncEventType.FILE_MODIFIED)
 
@@ -438,6 +462,7 @@ class FileSystemWatcher:
         stable_count: int = DOWNLOAD_STABLE_COUNT,
         max_wait: int = DOWNLOAD_MAX_WAIT,
         recursive: bool = True,
+        cooldown_manager=None,  # Optional: for multi-source mode
     ) -> None:
         """Initialize the filesystem watcher.
 
@@ -448,10 +473,12 @@ class FileSystemWatcher:
             stable_count: Consecutive stable checks to confirm download complete
             max_wait: Maximum seconds to wait for download
             recursive: Watch subdirectories recursively
+            cooldown_manager: Optional SyncCooldownManager for multi-source mode
         """
         self.source_dirs = source_dirs
         self.callback = callback
         self.recursive = recursive
+        self.cooldown_manager = cooldown_manager
 
         self.download_detector = DownloadDetector(
             check_interval=check_interval,
@@ -479,6 +506,7 @@ class FileSystemWatcher:
             callback=self.callback,
             source_dirs=self.source_dirs,
             download_detector=self.download_detector,
+            cooldown_manager=self.cooldown_manager,
         )
 
         self._observer = Observer()

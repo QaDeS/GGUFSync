@@ -17,6 +17,20 @@ from .constants import (
 )
 
 
+class SyncMode(Enum):
+    """Synchronization mode."""
+    SINGLE_SOURCE = "single_source"
+    MULTI_SOURCE = "multi_source"
+
+
+class ConflictStrategy(Enum):
+    """Conflict resolution strategies for interactive mode."""
+    KEEP_NEWEST = "newest"
+    KEEP_LARGEST = "largest"
+    KEEP_ALL = "all"
+    MANUAL = "manual"
+
+
 class SyncAction(Enum):
     """Actions that can occur during synchronization."""
 
@@ -350,6 +364,7 @@ class BackendConfig(BaseModel):
     """Configuration for a backend."""
 
     enabled: bool = True
+    backend_id: str | None = Field(default=None)  # Unique ID for multi-source mode
     output_dir: Path
     extra_params: dict[str, Any] = Field(default_factory=dict)
     prefer_hardlinks: bool = True
@@ -545,6 +560,10 @@ class LoggingConfig(BaseModel):
 class SyncConfig(BaseModel):
     """Configuration for synchronization behavior."""
 
+    # Mode selection
+    mode: SyncMode = SyncMode.SINGLE_SOURCE
+    
+    # Standard options
     dry_run: bool = False
     preserve_orphans: bool = False  # If True, don't remove files not in source
     follow_symlinks: bool = False
@@ -554,10 +573,29 @@ class SyncConfig(BaseModel):
     default_context_size: int | None = None  # None = use model/frontend default
     default_gpu_layers: int = -1  # -1 = use all available
     default_threads: int | None = None  # None = let backend decide
+    
+    # Multi-source specific options
+    metadata_dir: Path | None = Field(default=None)
+    unified_storage_dir: Path | None = Field(default=None)
+    cooldown_seconds: float = 0.2  # Delay to prevent circular sync loops
+
+    @field_validator("mode", mode="before")
+    @classmethod
+    def validate_mode(cls, v: Any) -> SyncMode:
+        if isinstance(v, str):
+            return SyncMode(v)
+        return v
 
     @field_validator("global_ignore_file")
     @classmethod
     def validate_ignore_file(cls, v: Path | None) -> Path | None:
+        if v is not None:
+            return v.expanduser().resolve()
+        return v
+    
+    @field_validator("metadata_dir", "unified_storage_dir")
+    @classmethod
+    def validate_metadata_dirs(cls, v: Path | None) -> Path | None:
         if v is not None:
             return v.expanduser().resolve()
         return v
@@ -576,6 +614,24 @@ class AppConfig(BaseModel):
     @classmethod
     def validate_source_dir(cls, v: Path) -> Path:
         return v.expanduser().resolve()
+    
+    @property
+    def is_multi_source(self) -> bool:
+        """Check if running in multi-source mode."""
+        return self.sync.mode == SyncMode.MULTI_SOURCE
+    
+    @property
+    def effective_source_dirs(self) -> list[Path]:
+        """Get all source directories to watch."""
+        if self.is_multi_source:
+            # In multi-source mode, watch all backend directories
+            return [
+                b.output_dir for b in self.backends.values()
+                if b.enabled
+            ]
+        else:
+            # In single-source mode, watch only the source directory
+            return [self.source_dir]
 
     model_config = {
         "extra": "allow",

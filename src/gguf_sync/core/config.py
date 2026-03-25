@@ -423,6 +423,7 @@ class ConfigLoader:
                 "json_format": False,
             },
             "sync": {
+                "mode": "single_source",  # or "multi_source" for bidirectional sync
                 "dry_run": False,
                 "prefer_hardlinks": True,
                 "add_only": False,
@@ -430,6 +431,9 @@ class ConfigLoader:
                 "default_context_size": None,
                 "default_gpu_layers": -1,
                 "default_threads": None,
+                # Multi-source specific options:
+                "metadata_dir": "~/.gguf_sync",
+                "cooldown_seconds": 0.2,
             },
         }
         return yaml.dump(default, default_flow_style=False, sort_keys=False)

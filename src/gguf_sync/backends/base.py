@@ -314,6 +314,14 @@ class Backend(ABC):
     def name(self) -> str:
         """Return the backend name."""
         pass
+    
+    @property
+    def backend_id(self) -> str:
+        """Return the unique backend ID for multi-source mode."""
+        # Use configured backend_id if available, otherwise derive from name
+        if self.config.backend_id:
+            return self.config.backend_id
+        return self.name.lower().replace(" ", "_").replace("-", "_")
 
     @classmethod
     def discover(cls) -> list[DiscoveredBackend]:

@@ -48,6 +48,9 @@ from .core.models import (
     TextGenConfig,
     vLLMConfig,
 )
+from .core.conflict_resolver import ConflictDatabase
+from .core.models import ConflictStrategy, SyncMode
+from .core.multi_sync import MultiSourceSyncEngine
 from .core.service import ServiceInstaller
 from .core.sync import SyncEngine
 from .core.watcher import FileSystemWatcher
@@ -622,6 +625,372 @@ def discover(
     except Exception as e:
         logger.exception("Discovery failed")
         console.print(f"[red]Discovery failed: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="multi-sync")
+def multi_sync(
+    config_file: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to configuration file",
+        exists=True,
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        "-n",
+        help="Show what would be done without making changes",
+    ),
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        "-w",
+        help="Run in continuous watch mode",
+    ),
+    cooldown: float = typer.Option(
+        0.2,
+        "--cooldown",
+        help="Cooldown period in seconds to prevent circular syncs",
+    ),
+) -> None:
+    """Run multi-source synchronization across all backends."""
+    try:
+        # Load configuration
+        loader = ConfigLoader()
+        cli_args: dict[str, Any] = {
+            "sync": {
+                "mode": "multi_source",
+                "add_only": True,
+                "dry_run": dry_run,
+                "cooldown_seconds": cooldown,
+            },
+        }
+
+        config = loader.load(config_path=config_file, cli_args=cli_args)
+        
+        # Verify we're in multi-source mode
+        if not config.is_multi_source:
+            console.print("[red]Error: Configuration is not in multi-source mode[/red]")
+            console.print("[dim]Set sync.mode to 'multi_source' in your config file[/dim]")
+            raise typer.Exit(1)
+
+        # Create backends
+        backends = get_backends(config)
+
+        if not backends:
+            console.print("[red]Error: No backends enabled[/red]")
+            raise typer.Exit(1)
+
+        # Create multi-source sync engine
+        engine = MultiSourceSyncEngine(config, backends)
+        engine.setup()
+
+        console.print(
+            Panel.fit(
+                f"[bold green]Multi-Source Synchronization[/bold green]\n"
+                f"Mode: [cyan]multi_source[/cyan]\n"
+                f"Backends: [yellow]{', '.join(b.name for b in backends)}[/yellow]\n"
+                f"Add-Only: [green]enabled[/green]"
+            )
+        )
+
+        # Perform full sync
+        console.print("[dim]Performing full synchronization...[/dim]")
+        result = engine.full_sync()
+
+        # Display results
+        table = Table(title="Synchronization Results")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", justify="right")
+
+        table.add_row("Models Processed", str(len(engine.unified_index.entries)))
+        table.add_row("Hardlinks Created", str(result.linked))
+        table.add_row("Conflicts Detected", str(result.conflicts))
+        table.add_row("Errors", str(len(result.errors)))
+
+        console.print(table)
+
+        if result.conflicts > 0:
+            console.print(
+                f"\n[yellow]{result.conflicts} conflict(s) detected.[/yellow] "
+                "Run [bold]gguf-sync conflicts list[/bold] to review."
+            )
+
+        if result.errors:
+            console.print("\n[red]Errors:[/red]")
+            for error in result.errors:
+                console.print(f"  [red]- {error}[/red]")
+
+        # Watch mode
+        if watch:
+            console.print("\n[dim]Starting watch mode... Press Ctrl+C to stop[/dim]")
+            
+            async def run_watcher() -> None:
+                def on_event(event) -> None:
+                    try:
+                        result = engine.handle_event(event)
+                        if result.linked > 0:
+                            console.print(
+                                f"[green]Synced {result.linked} model(s)[/green] "
+                                f"from event: {event.path.name}"
+                            )
+                        if result.conflicts > 0:
+                            console.print(
+                                f"[yellow]Conflict detected:[/yellow] {event.path.name}"
+                            )
+                    except Exception as e:
+                        logger.error("Error handling event", error=str(e))
+
+                # Watch all backend directories
+                watcher = FileSystemWatcher(
+                    source_dirs=config.effective_source_dirs,
+                    callback=on_event,
+                    check_interval=config.watch.check_interval,
+                    stable_count=config.watch.stable_count,
+                    cooldown_manager=engine.cooldown_manager,
+                )
+
+                await watcher.run()
+
+            try:
+                anyio.run(run_watcher)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Interrupted by user[/yellow]")
+
+        console.print("\n[bold green]Synchronization complete![/bold green]")
+
+    except GGUFSyncError as e:
+        console.print(f"[red]Error: {e.message}[/red]")
+        if e.details:
+            console.print(f"[dim]{e.details}[/dim]")
+        raise typer.Exit(1)
+    except Exception as e:
+        logger.exception("Unexpected error")
+        console.print(f"[red]Unexpected error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@app.command(name="conflicts")
+def conflicts_cmd(
+    action: str = typer.Argument(
+        ...,
+        help="Action to perform: list, resolve, resolve-all",
+    ),
+    model_id: str | None = typer.Argument(
+        None,
+        help="Model ID (for resolve action)",
+    ),
+    config_file: Path | None = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to configuration file",
+        exists=True,
+    ),
+    strategy: ConflictStrategy = typer.Option(
+        ConflictStrategy.KEEP_NEWEST,
+        "--strategy",
+        "-s",
+        help="Resolution strategy for resolve-all",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        "-n",
+        help="Show what would be done without making changes",
+    ),
+) -> None:
+    """Manage model conflicts."""
+    from rich.prompt import Prompt
+    
+    try:
+        # Load configuration to get metadata directory
+        loader = ConfigLoader()
+        config = loader.load(config_path=config_file)
+        
+        metadata_dir = config.sync.metadata_dir or Path.home() / ".gguf_sync"
+        db = ConflictDatabase(metadata_dir)
+
+        if action == "list":
+            unresolved = db.get_unresolved()
+            
+            if not unresolved:
+                console.print("[green]No unresolved conflicts![/green]")
+                return
+
+            table = Table(title=f"Unresolved Conflicts ({len(unresolved)})")
+            table.add_column("#", style="cyan")
+            table.add_column("Model ID", style="white")
+            table.add_column("Backends", style="yellow")
+            table.add_column("Sizes", style="blue")
+            table.add_column("Detected", style="dim")
+
+            for i, conflict in enumerate(unresolved, 1):
+                backends_str = ", ".join(
+                    f"{ins.backend_id}({ins.status})"
+                    for ins in conflict.instances
+                )
+                sizes_str = ", ".join(
+                    f"{ins.size // 1024 // 1024}MB"
+                    for ins in conflict.instances
+                )
+                detected = conflict.detected_at.strftime("%Y-%m-%d %H:%M")
+
+                table.add_row(str(i), conflict.model_id, backends_str, sizes_str, detected)
+
+            console.print(table)
+            console.print(
+                "\n[dim]Resolve with: gguf-sync conflicts resolve <model_id>[/dim]"
+            )
+
+        elif action == "resolve":
+            if not model_id:
+                console.print("[red]Error: model_id is required for resolve action[/red]")
+                raise typer.Exit(1)
+
+            record = db.get_record(model_id)
+            if not record:
+                console.print(f"[red]No conflict found for: {model_id}[/red]")
+                raise typer.Exit(1)
+
+            if record.status == "resolved":
+                console.print(f"[yellow]Conflict already resolved: {model_id}[/yellow]")
+                return
+
+            # Display conflict details
+            console.print(Panel.fit(f"[bold]Resolving: {model_id}[/bold]"))
+
+            for i, instance in enumerate(record.instances, 1):
+                status_color = "green" if instance.status == "original" else "yellow"
+                size_mb = instance.size // 1024 // 1024
+                mtime_str = "unknown"
+                try:
+                    mtime_str = "datetime.fromtimestamp(instance.mtime).strftime('%Y-%m-%d %H:%M')"
+                except:
+                    pass
+                
+                console.print(
+                    f"[{i}] [{status_color}]{instance.backend_id}[/{status_color}]: "
+                    f"{size_mb}MB"
+                )
+                console.print(f"    Path: {instance.path}")
+
+            # Interactive menu
+            console.print("\n[bold]Options:[/bold]")
+            for i, instance in enumerate(record.instances, 1):
+                console.print(f"  {i}. Keep {instance.backend_id} version")
+            console.print(f"  {len(record.instances) + 1}. Keep all versions (rename)")
+            console.print(f"  {len(record.instances) + 2}. Skip")
+
+            choice = Prompt.ask(
+                "Choice",
+                choices=[str(i) for i in range(1, len(record.instances) + 3)],
+            )
+            choice = int(choice)
+
+            if dry_run:
+                console.print("[dim][DRY RUN] No changes made[/dim]")
+                return
+
+            if choice <= len(record.instances):
+                # Keep specific version
+                winner = record.instances[choice - 1]
+                console.print(f"[green]Resolving: keeping {winner.backend_id} version[/green]")
+                
+                # Hardlink winner to all backends
+                for instance in record.instances:
+                    if instance.backend_id != winner.backend_id:
+                        try:
+                            src_path = Path(winner.path)
+                            dst_path = Path(instance.path)
+                            if dst_path.exists():
+                                dst_path.unlink()
+                            import os
+                            os.link(src_path, dst_path)
+                            console.print(f"  Hardlinked to {instance.backend_id}")
+                        except Exception as e:
+                            console.print(f"  [red]Failed: {e}[/red]")
+                
+                db.resolve_conflict(model_id, "keep_specific", winner.backend_id)
+                console.print("[green]Conflict resolved![/green]")
+                
+            elif choice == len(record.instances) + 1:
+                # Keep all - rename conflicts to permanent names
+                console.print("[green]Keeping all versions with backend suffixes[/green]")
+                
+                for instance in record.instances:
+                    if instance.status == "conflict":
+                        try:
+                            src_path = Path(instance.path)
+                            new_name = f"{model_id}.{instance.backend_id}.gguf"
+                            dst_path = src_path.parent / new_name
+                            src_path.rename(dst_path)
+                            console.print(f"  Renamed to {new_name}")
+                        except Exception as e:
+                            console.print(f"  [red]Failed to rename: {e}[/red]")
+                
+                db.resolve_conflict(model_id, "keep_all")
+                console.print("[green]Conflict resolved![/green]")
+            else:
+                console.print("Skipped.")
+
+        elif action == "resolve-all":
+            unresolved = db.get_unresolved()
+            
+            if not unresolved:
+                console.print("[green]No unresolved conflicts![/green]")
+                return
+
+            console.print(f"[yellow]Resolving {len(unresolved)} conflict(s) with strategy: {strategy.value}[/yellow]")
+            
+            if dry_run:
+                console.print("[dim][DRY RUN] No changes made[/dim]")
+                for conflict in unresolved:
+                    console.print(f"  Would resolve: {conflict.model_id}")
+                return
+
+            resolved_count = 0
+            for conflict in unresolved:
+                if strategy == ConflictStrategy.KEEP_NEWEST:
+                    winner = max(conflict.instances, key=lambda i: i.mtime)
+                elif strategy == ConflictStrategy.KEEP_LARGEST:
+                    winner = max(conflict.instances, key=lambda i: i.size)
+                else:
+                    console.print(f"[yellow]Skipping {conflict.model_id}: unsupported strategy[/yellow]")
+                    continue
+
+                try:
+                    # Hardlink winner to all backends
+                    for instance in conflict.instances:
+                        if instance.backend_id != winner.backend_id:
+                            src_path = Path(winner.path)
+                            dst_path = Path(instance.path)
+                            if dst_path.exists():
+                                dst_path.unlink()
+                            import os
+                            os.link(src_path, dst_path)
+                    
+                    db.resolve_conflict(conflict.model_id, f"keep_{strategy.value}", winner.backend_id)
+                    resolved_count += 1
+                    console.print(f"  [green]Resolved:[/green] {conflict.model_id} -> {winner.backend_id}")
+                except Exception as e:
+                    console.print(f"  [red]Failed:[/red] {conflict.model_id}: {e}")
+
+            console.print(f"\n[green]Resolved {resolved_count}/{len(unresolved)} conflicts[/green]")
+
+        else:
+            console.print(f"[red]Unknown action: {action}[/red]")
+            console.print("Valid actions: list, resolve, resolve-all")
+            raise typer.Exit(1)
+
+    except GGUFSyncError as e:
+        console.print(f"[red]Error: {e.message}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        logger.exception("Conflicts command failed")
+        console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)
 
 
